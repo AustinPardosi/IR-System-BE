@@ -1,0 +1,2 @@
+# File ini digunakan untuk memastikan folder data tetap disertakan dalam git
+# Folder ini akan menyimpan file-file data seperti stopwords, model Word2Vec, dll. 

@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+    api:
+        build: .
+        container_name: ir-system-be
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/app
+        environment:
+            - ENVIRONMENT=development
+        restart: unless-stopped
