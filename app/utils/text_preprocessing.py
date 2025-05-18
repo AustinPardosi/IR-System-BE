@@ -9,11 +9,13 @@ Modul ini berisi fungsi-fungsi untuk preprocessing text:
 
 from typing import List, Set
 import logging
+from nltk.stem import PorterStemmer
 
 logger = logging.getLogger(__name__)
 
 # Placeholder untuk daftar stopwords
 STOPWORDS: Set[str] = set()
+stemmer = PorterStemmer()
 
 
 def tokenize(text: str) -> List[str]:
@@ -54,8 +56,7 @@ def stem_word(word: str) -> str:
     Returns:
         Kata hasil stemming.
     """
-    # Placeholder for implementation
-    pass
+    return stemmer.stem(word)
 
 
 def stem_tokens(tokens: List[str]) -> List[str]:
@@ -69,8 +70,7 @@ def stem_tokens(tokens: List[str]) -> List[str]:
         List token hasil stemming.
     """
     # Placeholder for implementation
-    pass
-
+    return [stemmer.stem(token) for token in tokens]
 
 def preprocess_text(
     text: str, use_stemming: bool = True, use_stopword_removal: bool = True
