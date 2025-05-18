@@ -68,7 +68,7 @@ class RetrievalService:
         tf_log = weighting_method.get("tf_log", False)
         tf_binary = weighting_method.get("tf_binary", False)
         tf_augmented = weighting_method.get("tf_augmented", False)
-        use_idf = weighting_method.get("use_idf", True)
+        use_idf = weighting_method.get("use_idf", False)
         use_normalization = weighting_method.get("use_normalization", False)
 
         # Get term frequencies across docs
