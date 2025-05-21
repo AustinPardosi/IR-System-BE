@@ -177,8 +177,8 @@ async def test_tf_idf_8():
 # Kasus 9: Binary TF + IDF + Normalization
 @pytest.mark.asyncio
 async def test_tf_idf_9():
-    weight = await service.calculate_tf_idf ("think", "3", freq_file, {"tf_augmented": True, "use_normalization": True})
-    tf = 0.5 + 0.5 * (1/3)
+    weight = await service.calculate_tf_idf ("think", "3", freq_file, {"tf_binary": True, "use_idf": True, "use_normalization": True})
+    tf = 1
     idf = math.log2(4/1)
     normalization = 1/12
-    assert weight["weight"] == tf*normalization
+    assert weight["weight"] == tf*normalization*idf
