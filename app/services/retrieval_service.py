@@ -64,10 +64,10 @@ class RetrievalService:
         # Menghitung bobot term dan menyusun inverted file
         for doc_key, doc_freq in freq_file.items():
             for token_key, _ in doc_freq.items():
-                weight = self.calculate_tf_idf (token_key, doc_key, freq_file, document_weighting_method)
+                weight = await self.calculate_tf_idf (token_key, doc_key, freq_file, document_weighting_method)
                 inverted_file.setdefault(weight["term"], {})[weight["doc"]] = weight["weight"]
 
-        return (inverted_file)
+        return inverted_file
 
 
     async def calculate_tf_idf (
@@ -111,7 +111,8 @@ class RetrievalService:
         elif tf_binary:
             tf = 1
         elif tf_augmented:
-            freqs_in_doc = [freqs.get(term, 0) for freqs in freq_file.values()]
+            terms = freq_file.get(doc,{})
+            freqs_in_doc = [x for x in terms.values()]
             max_freq = max(freqs_in_doc) if freqs_in_doc else 1
             tf = 0.5 + 0.5 * (freq_in_doc / max_freq)
         else:

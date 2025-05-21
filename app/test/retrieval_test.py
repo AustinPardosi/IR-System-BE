@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 STOPWORDS: Set[str] = set()
 import nltk
+nltk.download('punkt')
+
 # nltk.download('punkt_tab')
 # nltk.download('stopwords')
 from nltk.corpus import stopwords
