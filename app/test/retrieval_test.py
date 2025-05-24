@@ -1,27 +1,112 @@
-"""
-Retrieval Service
-----------------
-Modul ini bertanggung jawab untuk:
-1. Menghitung similaritas dokumen dengan query
-2. Melakukan pembobotan TF-IDF
-3. Membuat inverted file
-4. Mengembalikan hasil retrieval dengan ranking
-"""
+# FUNCTION SAMA DENGAN DI FILE
+    # retrieval_service.py dan text_preprocessing.py
 
-from typing import List, Dict, Any, Optional
-import logging
-from app.models.query_models import (
-    InteractiveQueryInput,
-    BatchQueryInput,
-    RetrievalResult,
-)
+from typing import List, Dict, Any, Set
 import math
 
-from ..utils.text_preprocessing import preprocess_text
-from collections import Counter
-
+import logging
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
 
 logger = logging.getLogger(__name__)
+
+
+STOPWORDS: Set[str] = set()
+import nltk
+nltk.download('punkt')
+
+# nltk.download('punkt_tab')
+# nltk.download('stopwords')
+from nltk.corpus import stopwords
+stop_words = set(stopwords.words("english"))
+
+
+from collections import Counter
+stemmer = PorterStemmer()
+
+
+def tokenize(text: str) -> List[str]:
+    """
+    Tokenisasi teks menjadi list token.
+
+    Args:
+        text: Teks yang akan ditokenisasi.
+
+    Returns:
+        List token hasil tokenisasi.
+    """
+    tokenized_text = word_tokenize(text)
+    return (tokenized_text)
+
+
+def remove_stopwords(tokens: List[str]) -> List[str]:
+    """
+    Menghapus stopwords dari list token.
+
+    Args:
+        tokens: List token input.
+
+    Returns:
+        List token tanpa stopwords.
+    """
+    filtered_sent = []
+    for w in tokens:
+        if (w not in stop_words):
+            filtered_sent.append(w)
+    
+    return (filtered_sent)
+
+
+def stem_word(word: str) -> str:
+    """
+    Melakukan stemming pada sebuah kata.
+
+    Args:
+        word: Kata yang akan di-stem.
+
+    Returns:
+        Kata hasil stemming.
+    """
+    return stemmer.stem(word)
+
+
+def stem_tokens(tokens: List[str]) -> List[str]:
+    """
+    Melakukan stemming pada list token.
+
+    Args:
+        tokens: List token yang akan di-stem.
+
+    Returns:
+        List token hasil stemming.
+    """
+    return [stemmer.stem(token) for token in tokens]
+
+
+def preprocess_text(
+    text: str, use_stemming: bool = True, use_stopword_removal: bool = True
+) -> List[str]:
+    """
+    Melakukan preprocessing teks lengkap.
+
+    Args:
+        text: Teks yang akan dipreprocess.
+        use_stemming: Apakah akan menggunakan stemming.
+        use_stopword_removal: Apakah akan menghilangkan stopwords.
+
+    Returns:
+        List token hasil preprocessing, lowercase
+    """
+    tokens = tokenize(text)
+    if (use_stemming):
+        tokens = stem_tokens(tokens)
+    if (use_stopword_removal):
+        tokens = remove_stopwords(tokens)
+    
+    return ([token.lower() for token in tokens])
+
+
+# -----------------------------------------------------------------------------------------------------
 
 
 class RetrievalService:
@@ -37,7 +122,7 @@ class RetrievalService:
         pass
 
 
-    async def create_inverted_file (
+    def create_inverted_file (
         self, documents: Dict[str, Any], use_stemming: bool, use_stopword_removal: bool,
         document_weighting_method: Dict[str, bool]
     ) -> Dict[str, Any]:
@@ -62,15 +147,15 @@ class RetrievalService:
 
         inverted_file = {}
         # Menghitung bobot term dan menyusun inverted file
-        for doc_key, doc_freq in freq_file.items():
-            for token_key, _ in doc_freq.items():
-                weight = await self.calculate_tf_idf (token_key, doc_key, freq_file, document_weighting_method)
+        for doc_key, doc_freqs in freq_file.items():
+            for token_key, _ in doc_freqs.items():
+                weight = self.calculate_tf_idf (token_key, doc_key, freq_file, document_weighting_method)
                 inverted_file.setdefault(weight["term"], {})[weight["doc"]] = weight["weight"]
 
-        return inverted_file
+        return (inverted_file)
 
 
-    async def calculate_tf_idf (
+    def calculate_tf_idf (
         self, term: str, doc: str, freq_file: Dict[str, Any], weighting_method: Dict[str, bool]
     ) -> Dict[str, Any]:
         """
@@ -111,8 +196,7 @@ class RetrievalService:
         elif tf_binary:
             tf = 1
         elif tf_augmented:
-            terms = freq_file.get(doc,{})
-            freqs_in_doc = [x for x in terms.values()]
+            freqs_in_doc = [freqs.get(term, 0) for freqs in freq_file.values()]
             max_freq = max(freqs_in_doc) if freqs_in_doc else 1
             tf = 0.5 + 0.5 * (freq_in_doc / max_freq)
         else:
@@ -141,7 +225,7 @@ class RetrievalService:
         }
 
 
-    async def calculate_similarity (
+    def calculate_similarity (
         self,
         query_vector: Dict[str, float],
         document_vectors: Dict[str, Dict[str, float]],
@@ -170,3 +254,37 @@ class RetrievalService:
             ))
 
         return (query_docs_similarities)
+
+
+def print_inverted_file(inverted_file, indent=0):
+    for key, value in inverted_file.items():
+        print('  ' * indent + str(key) + ':', end=' ')
+        if isinstance(value, dict):
+            print()
+            print_inverted_file(value, indent + 1)
+        else:
+            print(str(value))
+    
+
+# TEST
+RS = RetrievalService()
+
+inverted_file = RS.create_inverted_file (
+    {
+        "1": "To do is to be. To be is to do.",
+        "2": "To be or not to be. I am what I am.",
+        "3": "I think therefore I am. Do be do be do.",
+        "4": "Do do do, da da da. Let it be, let it be."
+    },
+    False, False, {"tf_log": True, "use_idf": True}
+)
+
+print_inverted_file(inverted_file)
+
+query_vector = {
+    'to': (1+math.log2(1)) * math.log2(4/2), 
+    'do': (1+math.log2(1)) * math.log2(4/3)
+}
+
+similarity = RS.calculate_similarity (query_vector, inverted_file)
+print(similarity)

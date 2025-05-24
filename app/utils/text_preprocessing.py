@@ -9,11 +9,19 @@ Modul ini berisi fungsi-fungsi untuk preprocessing text:
 
 from typing import List, Set
 import logging
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
 
 logger = logging.getLogger(__name__)
 
-# Placeholder untuk daftar stopwords
 STOPWORDS: Set[str] = set()
+import nltk
+nltk.download('punkt_tab')
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+stop_words = set(stopwords.words("english"))
+
+stemmer = PorterStemmer()
 
 
 def tokenize(text: str) -> List[str]:
@@ -26,8 +34,8 @@ def tokenize(text: str) -> List[str]:
     Returns:
         List token hasil tokenisasi.
     """
-    # Placeholder for implementation
-    pass
+    tokenized_text = word_tokenize(text)
+    return (tokenized_text)
 
 
 def remove_stopwords(tokens: List[str]) -> List[str]:
@@ -40,8 +48,12 @@ def remove_stopwords(tokens: List[str]) -> List[str]:
     Returns:
         List token tanpa stopwords.
     """
-    # Placeholder for implementation
-    pass
+    filtered_sent = []
+    for w in tokens:
+        if (w not in stop_words):
+            filtered_sent.append(w)
+    
+    return (filtered_sent)
 
 
 def stem_word(word: str) -> str:
@@ -54,8 +66,7 @@ def stem_word(word: str) -> str:
     Returns:
         Kata hasil stemming.
     """
-    # Placeholder for implementation
-    pass
+    return stemmer.stem(word)
 
 
 def stem_tokens(tokens: List[str]) -> List[str]:
@@ -68,8 +79,7 @@ def stem_tokens(tokens: List[str]) -> List[str]:
     Returns:
         List token hasil stemming.
     """
-    # Placeholder for implementation
-    pass
+    return [stemmer.stem(token) for token in tokens]
 
 
 def preprocess_text(
@@ -84,7 +94,12 @@ def preprocess_text(
         use_stopword_removal: Apakah akan menghilangkan stopwords.
 
     Returns:
-        List token hasil preprocessing.
+        List token hasil preprocessing, lowercase
     """
-    # Placeholder for implementation
-    pass
+    tokens = tokenize(text)
+    if (use_stemming):
+        tokens = stem_tokens(tokens)
+    if (use_stopword_removal):
+        tokens = remove_stopwords(tokens)
+    
+    return ([token.lower() for token in tokens])
