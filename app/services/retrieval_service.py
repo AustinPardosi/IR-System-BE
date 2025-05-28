@@ -8,7 +8,7 @@ Modul ini bertanggung jawab untuk:
 4. Mengembalikan hasil retrieval dengan ranking
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import logging
 from app.models.query_models import (
     InteractiveQueryInput,
@@ -16,6 +16,9 @@ from app.models.query_models import (
     RetrievalResult,
 )
 import math
+
+from app.test.retrieval_test import tokenize
+from app.utils.evaluation import calculate_average_precision
 
 from ..utils.text_preprocessing import preprocess_text
 from collections import Counter
@@ -159,10 +162,10 @@ class RetrievalService:
         query_docs_similarities = {}
         
         for query_key, _ in query_vector.items():
-            if (query_key in document_vectors):
+            if (query_key in document_vectors.keys()):
                 for doc, _ in document_vectors[query_key].items():
                     query_docs_similarities.setdefault(doc, 0)
-                    query_docs_similarities[doc] += ( query_vector[query_key] * document_vectors[query_key][doc] )
+                    query_docs_similarities[doc] += ( query_vector[query_key] * document_vectors[query_key][doc])
         
         if (len(query_docs_similarities) > 0):
             query_docs_similarities = dict ( sorted (
@@ -170,3 +173,60 @@ class RetrievalService:
             ))
 
         return (query_docs_similarities)
+    
+    async def retrieve_document (
+        self,
+        query: str,
+        inverted_file: Dict[str,Any],
+        weighting_method: Dict[str, bool],
+        relevant_doc: List[int],
+    ) -> Tuple[List[str], float]:
+        # Pembentukan vektor query
+        query_terms =  tokenize(query) 
+        term_freq = {}
+        for term in query_terms:
+            term_freq[term] = term_freq.get(term, 0) + 1
+        max_tf = max(term_freq.values()) if term_freq else 1
+
+        # Perhitungan bobot query
+        N = len({doc_id for postings in inverted_file.values() for doc_id in postings})
+
+        def get_tf_weight(tf: int) -> float:
+            if weighting_method.get("tf_raw"):
+                return tf
+            elif weighting_method.get("tf_augmented"):
+                return 0.5 + 0.5 * (tf / max_tf)
+            elif weighting_method.get("tf_binary"):
+                return 1.0 if tf > 0 else 0.0
+            elif weighting_method.get("tf_logarithmic"):
+                return 1.0 + math.log(tf) if tf > 0 else 0.0
+            return tf
+
+        query_vector = {}
+        for term, tf in term_freq.items():
+            tf_weight = get_tf_weight(tf)
+            idf = 0.0
+            if term in inverted_file:
+                df = len(inverted_file[term])
+                if df > 0:
+                    idf = math.log(N / df)
+            weight = tf_weight * idf if weighting_method.get("use_idf") else tf_weight
+            if weight > 0:
+                query_vector[term] = weight
+
+        if weighting_method.get("use_normalization"):
+            norm = math.sqrt(sum(w ** 2 for w in query_vector.values()))
+            if norm > 0:
+                for term in query_vector:
+                    query_vector[term] /= norm
+
+        # Hitung similarity
+        sim = await self.calculate_similarity(query_vector, inverted_file)
+            
+        ranked_docs = [doc_id for doc_id in sim]
+
+        # Hitung Average Precision
+        relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
+        average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids) #belum ada fungsinya..
+
+        return ranked_docs, average_precision

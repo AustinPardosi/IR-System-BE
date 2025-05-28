@@ -182,3 +182,35 @@ async def test_tf_idf_9():
     idf = math.log2(4/1)
     normalization = 1/12
     assert weight["weight"] == tf*normalization*idf
+
+# Retrieval Test
+@pytest.mark.asyncio
+async def test_retrieval():
+    query = "information retrieval system"
+
+    inverted_file = {
+        "information": {"1": 0.3, "2": 0.5},
+        "retrieval": {"1": 0.4},
+        "system": {"2": 0.6, "3": 0.2},
+    }
+
+    documents = {
+        "1": {"information": 2, "retrieval": 3},
+        "2": {"information": 5, "system": 4},
+        "3": {"system": 1},
+    }
+
+    relevant_doc = ['1', '2']
+
+    weighting_method = {
+        "tf_raw": False,
+        "tf_logarithmic": True,
+        "tf_binary": False,
+        "tf_augmented": False,
+        "use_idf": True,
+        "use_normalization": True,
+    }
+
+    docs, ap = await service.retrieve_document(query,inverted_file,weighting_method,documents,relevant_doc)
+    assert relevant_doc[0] == docs[0]
+    assert relevant_doc[1] == docs[1]
