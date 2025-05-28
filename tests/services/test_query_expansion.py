@@ -65,15 +65,7 @@ def read_queries(file_path: str) -> dict:
 
 async def main():
     # Inisialisasi service
-    qe_service = QueryExpansionService()
-
-    # Baca koleksi dokumen
-    documents = read_cisi_collection("IRTestCollection/cisi.all")
-    print(f"Loaded {len(documents)} documents")
-
-    # Train model Word2Vec
-    print("Training Word2Vec model...")
-    await qe_service.train_word2vec_model(documents)
+    qe_service = await QueryExpansionService.create(document_path="IRTestCollection/cisi.all")
 
     # Baca queries
     queries = read_queries("IRTestCollection/query.text")

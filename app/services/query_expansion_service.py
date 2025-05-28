@@ -27,6 +27,20 @@ class QueryExpansionService:
         """
         self.model = None
 
+    @classmethod
+    async def create(cls, document_path: str):
+        """
+        Async factory method to initialize and train Word2Vec model.
+        """
+        self = cls()
+        documents = self.read_cisi_collection(file_path=document_path)
+        print(f"Loaded {len(documents)} documents")
+
+        print("Training Word2Vec model...")
+        await self.train_word2vec_model(documents)
+
+        return self
+
     async def train_word2vec_model(self, documents: Dict[str, str]) -> None:
         """
         Melatih model Word2Vec dari dokumen.
@@ -165,3 +179,30 @@ class QueryExpansionService:
         ]
 
         return filtered_terms
+
+    def read_cisi_collection(self, file_path: str) -> dict:
+        """
+        Membaca koleksi CISI dan mengembalikan dictionary dokumen.
+        """
+        documents = {}
+        current_id = None
+        current_content = []
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith(".I "):
+                    # Simpan dokumen sebelumnya jika ada
+                    if current_id is not None:
+                        documents[current_id] = " ".join(current_content)
+                    current_id = line.strip().split(" ")[1]
+                    current_content = []
+                elif line.startswith(".W"):
+                    continue
+                else:
+                    current_content.append(line.strip())
+
+        # Simpan dokumen terakhir
+        if current_id is not None:
+            documents[current_id] = " ".join(current_content)
+
+        return documents
