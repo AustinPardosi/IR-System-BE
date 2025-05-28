@@ -256,6 +256,28 @@ class RetrievalService:
         return (query_docs_similarities)
 
 
+    def get_weight_by_document_id (
+                self,
+                document_id: str,
+                inverted_file: Dict[str, Any]
+        ) -> Dict[str, Any]:
+        """
+        Mengambil bobot setiap term dalam dokumen tertentu.
+
+        Args:
+            document_id: ID dokumen yang akan diambil bobot-bobot term-nya
+            inverted_file: inverted file dalam format [term: (doc: weight)]
+
+        Returns:
+            Kamus bobot setiap kata dalam dokumen yang diinginkan. 
+        """
+        doc_dict = {}
+        for file_key, file_value in inverted_file.items():
+            if (document_id in file_value.keys()):
+                doc_dict[file_key] = file_value[document_id]
+        return (doc_dict)
+
+
 def print_inverted_file(inverted_file, indent=0):
     for key, value in inverted_file.items():
         print('  ' * indent + str(key) + ':', end=' ')
@@ -288,3 +310,5 @@ query_vector = {
 
 similarity = RS.calculate_similarity (query_vector, inverted_file)
 print(similarity)
+
+print(RS.get_weight_by_document_id("3", inverted_file))

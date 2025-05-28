@@ -6,6 +6,7 @@ Modul ini bertanggung jawab untuk:
 2. Melakukan pembobotan TF-IDF
 3. Membuat inverted file
 4. Mengembalikan hasil retrieval dengan ranking
+5. Mengambil bobot setiap term dalam dokumen tertentu
 """
 
 from typing import List, Dict, Any, Optional, Tuple
@@ -174,6 +175,7 @@ class RetrievalService:
 
         return (query_docs_similarities)
     
+
     async def retrieve_document (
         self,
         query: str,
@@ -227,6 +229,28 @@ class RetrievalService:
 
         # Hitung Average Precision
         relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
-        average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids) #belum ada fungsinya..
+        average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids)
 
         return ranked_docs, average_precision
+
+
+    async def get_weight_by_document_id (
+            self,
+            document_id: str,
+            inverted_file: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Mengambil bobot setiap term dalam dokumen tertentu.
+
+        Args:
+            document_id: ID dokumen yang akan diambil bobot-bobot term-nya
+            inverted_file: inverted file dalam format [term: (doc: weight)]
+
+        Returns:
+            Kamus bobot setiap kata dalam dokumen yang diinginkan. 
+        """
+        doc_dict = {}
+        for file_key, file_value in inverted_file.items():
+            if (document_id in file_value.keys()):
+                doc_dict[file_key] = file_value[document_id]
+        return (doc_dict)
