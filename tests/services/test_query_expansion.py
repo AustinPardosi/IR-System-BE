@@ -87,7 +87,7 @@ async def main():
 
         try:
             # Expand query
-            result = await qe_service.expand_query(query, threshold=0.7)
+            result = await qe_service.expand_query(query, threshold=0.7, limit=6)
 
             # Tampilkan hasil
             print("\nExpansion Results:")

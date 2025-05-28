@@ -71,19 +71,22 @@ class QueryExpansionService:
             logger.error(f"Error loading pretrained model: {str(e)}")
             raise
 
-    async def expand_query(self, query: str, threshold: float = 0.7) -> Dict[str, Any]:
+    async def expand_query(self, query: str, threshold: float = 0.7, limit: int = -1) -> Dict[str, Any]:
         """
         Melakukan ekspansi query menggunakan Word2Vec.
 
         Args:
             query: Query original.
             threshold: Threshold untuk memilih term yang akan ditambahkan (0.0 - 1.0).
+            limit: Batas maksimal banyaknya kata yang ditambahkan pada query expansion (-1 jika tidak ada limit).
 
         Returns:
             Dictionary berisi query original dan expanded, serta term-term yang ditambahkan.
         """
         if not self.model:
             raise ValueError("Word2Vec model belum dilatih atau dimuat!")
+        
+        isLimited = limit > -1
 
         # Preprocess query
         query_terms = preprocess_text(
@@ -92,24 +95,47 @@ class QueryExpansionService:
 
         # Simpan term yang akan ditambahkan
         expansion_terms = {}
+        all_expansion_candidates = []
 
         # Untuk setiap term di query, cari term yang similar
         for term in query_terms:
             similar_terms = await self.get_similar_terms(term, threshold)
             if similar_terms:
                 expansion_terms[term] = similar_terms
+                if (isLimited):
+                    for term_dict in similar_terms:
+                        term_dict["source"] = term  # keep track of original term
+                        all_expansion_candidates.append(term_dict)
 
-        # Gabungkan query asli dengan term ekspansi
-        expanded_terms = query_terms.copy()
-        for term_list in expansion_terms.values():
-            for term_dict in term_list:
-                expanded_terms.append(term_dict["term"])
+        if (isLimited):
+            # Urutkan berdasarkan similarity (descending) dan potong berdasarkan limit
+            all_expansion_candidates.sort(key=lambda x: x["similarity"], reverse=True)
+            all_expansion_candidates = all_expansion_candidates[:limit]
+
+            # Rekonstruksi expansion terms (untuk kondisi limited)
+            returned_expansion_terms = {}
+            for item in all_expansion_candidates:
+                source = item["source"]
+                returned_expansion_terms.setdefault(source, []).append({
+                    "term": item["term"],
+                    "similarity": item["similarity"]
+                })
+
+            # Final expanded terms
+            expansion_terms = returned_expansion_terms
+            expanded_terms = query_terms + [item["term"] for item in all_expansion_candidates]
+        else:
+            # Gabungkan query asli dengan term ekspansi
+            expanded_terms = query_terms.copy()
+            for term_list in expansion_terms.values():
+                for term_dict in term_list:
+                    expanded_terms.append(term_dict["term"])
 
         return {
             "original_query": query,
             "original_terms": query_terms,
             "expansion_terms": expansion_terms,
-            "expanded_terms": list(set(expanded_terms)),  # Hapus duplikat
+            "expanded_terms": expanded_terms,  # Hapus duplikat
         }
 
     async def get_similar_terms(
