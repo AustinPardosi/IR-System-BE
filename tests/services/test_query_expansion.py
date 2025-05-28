@@ -7,34 +7,6 @@ import asyncio
 from app.services.query_expansion_service import QueryExpansionService
 
 
-def read_cisi_collection(file_path: str) -> dict:
-    """
-    Membaca koleksi CISI dan mengembalikan dictionary dokumen.
-    """
-    documents = {}
-    current_id = None
-    current_content = []
-
-    with open(file_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.startswith(".I "):
-                # Simpan dokumen sebelumnya jika ada
-                if current_id is not None:
-                    documents[current_id] = " ".join(current_content)
-                current_id = line.strip().split(" ")[1]
-                current_content = []
-            elif line.startswith(".W"):
-                continue
-            else:
-                current_content.append(line.strip())
-
-    # Simpan dokumen terakhir
-    if current_id is not None:
-        documents[current_id] = " ".join(current_content)
-
-    return documents
-
-
 def read_queries(file_path: str) -> dict:
     """
     Membaca file query dan mengembalikan dictionary query.
