@@ -183,6 +183,19 @@ class RetrievalService:
         weighting_method: Dict[str, bool],
         relevant_doc: List[int],
     ) -> Tuple[List[str], float]:
+        """
+        Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
+
+        Args:
+            query: string query.
+            inverted_file: file yang berisi bobot-bobot term pada setiap dokumen.
+            weighting_method: metode pembobotan untuk query.
+            relevant_doc: list id dokumen yang relevan
+
+        Returns:
+            List dokumen yang terurut berdasarkan similarity beserta average precisionnya.
+        """
+
         # Pembentukan vektor query
         query_terms =  tokenize(query) 
         term_freq = {}
@@ -227,11 +240,39 @@ class RetrievalService:
             
         ranked_docs = [doc_id for doc_id in sim]
 
-        # Hitung Average Precision
-        relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
-        average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids)
+        # Hitung Average Precision (untuk batch query, yang interactive tidak ada relevance judgement)
+        average_precision = 0
+        if len(relevant_doc) != 0:
+            relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
+            average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids)
 
         return ranked_docs, average_precision
+    
+    async def retrieve_document_by_id(
+        self,
+        id: str,
+        documents: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        for doc in documents:
+            if doc['id'] == id:
+                return {
+                    'author': doc['author'],
+                    'title': doc['title'],
+                    'content': doc['content']
+                }
+        return {} 
+
+    async def retrieve_document_by_ids(
+        self,
+        documents: List[Dict[str, Any]],
+        ids: List[str],
+    ) -> List[Dict[str, Any]]:
+        list_of_docs = []
+        for id in ids:
+            doc = await self.retrieve_document_by_id(id, documents)
+            if doc:
+                list_of_docs.append(doc)
+        return list_of_docs
 
 
     async def get_weight_by_document_id (
