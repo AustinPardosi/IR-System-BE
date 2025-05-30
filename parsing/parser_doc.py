@@ -4,9 +4,10 @@ import json
 with open(r"D:\D\Kuliah\Kuliah Semester 8\IF4042\IR-System-BE\parsing\query.text", "r", encoding="utf-8") as file:
     lines = file.readlines()
 
-queries = []
-current_query = {}
+docs = {}
+current_doc = {}
 current_field = None
+current_id = None
 
 for line in lines:
     line = line.strip()
@@ -14,16 +15,15 @@ for line in lines:
         continue
 
     if line.startswith(".I "):
-        if current_query:
-            queries.append(current_query)
+        if current_id:
+            docs[current_id] = current_doc
 
-        current_query = {
-            "id": int(line[3:]),
+        current_id = str(int(line[3:]))
+        current_doc = {
             "title": "",
             "author": "",
             "words": "",
             "bibliographic": ""
-
         }
         current_field = None
 
@@ -41,12 +41,12 @@ for line in lines:
 
     else:
         if current_field:
-            current_query[current_field] += " " + line.strip()
+            current_doc[current_field] += "" + line.strip()
 
-if current_query:
-    queries.append(current_query)
+if current_id:
+    docs[current_id] = current_doc
 
-with open(r"D:\D\Kuliah\Kuliah Semester 8\IF4042\IR-System-BE\parsing\parsing_result.json", "w", encoding="utf-8") as out_file:
-    json.dump(queries, out_file, indent=2, ensure_ascii=False)
+with open(r"D:\D\Kuliah\Kuliah Semester 8\IF4042\IR-System-BE\parsing\parsing_doc.json", "w", encoding="utf-8") as out_file:
+    json.dump(docs, out_file, indent=2, ensure_ascii=False)
 
 print("Saved")
