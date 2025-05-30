@@ -1,6 +1,5 @@
 import json
 
-# Open and read the file
 with open(r"D:\D\Kuliah\Kuliah Semester 8\IF4042\IR-System-BE\parsing\query.text", "r", encoding="utf-8") as file:
     lines = file.readlines()
 
