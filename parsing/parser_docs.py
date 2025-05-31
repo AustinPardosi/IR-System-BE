@@ -1,6 +1,6 @@
 import json
 
-with open(r"D:\D\Kuliah\Kuliah Semester 8\IF4042\IR-System-BE\parsing\query.text", "r", encoding="utf-8") as file:
+with open(r"D:\D\Kuliah\Kuliah Semester 8\IF4042\IR-System-BE\parsing\cisi.all", "r", encoding="utf-8") as file:
     lines = file.readlines()
 
 docs = {}
@@ -45,7 +45,7 @@ for line in lines:
 if current_id:
     docs[current_id] = current_doc
 
-with open(r"D:\D\Kuliah\Kuliah Semester 8\IF4042\IR-System-BE\parsing\parsing_doc.json", "w", encoding="utf-8") as out_file:
+with open(r"D:\D\Kuliah\Kuliah Semester 8\IF4042\IR-System-BE\parsing\parsing_docs.json", "w", encoding="utf-8") as out_file:
     json.dump(docs, out_file, indent=2, ensure_ascii=False)
 
 print("Saved")
