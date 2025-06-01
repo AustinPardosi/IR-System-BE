@@ -26,6 +26,7 @@ class QueryExpansionService:
         Inisialisasi QueryExpansionService.
         """
         self.model = None
+        self._is_trained = False
 
     @classmethod
     async def create(cls, document_path: str):
@@ -40,6 +41,25 @@ class QueryExpansionService:
         await self.train_word2vec_model(documents)
 
         return self
+
+    async def ensure_model_trained(self, document_path: str = None) -> None:
+        """
+        Memastikan model sudah dilatih sebelum digunakan.
+        Jika model belum dilatih dan document_path diberikan, model akan dilatih.
+
+        Args:
+            document_path: Path ke dokumen untuk training (opsional)
+        """
+        if not self._is_trained:
+            if document_path:
+                documents = self.read_cisi_collection(file_path=document_path)
+                print(f"Loaded {len(documents)} documents")
+                print("Training Word2Vec model...")
+                await self.train_word2vec_model(documents)
+            else:
+                raise ValueError(
+                    "Model belum dilatih dan tidak ada document_path yang diberikan!"
+                )
 
     async def train_word2vec_model(self, documents: Dict[str, str]) -> None:
         """
@@ -67,6 +87,7 @@ class QueryExpansionService:
             sg=1,  # Skip-gram model (lebih baik untuk kata jarang)
         )
 
+        self._is_trained = True
         logger.info(
             f"Word2Vec model trained with vocabulary size: {len(self.model.wv.key_to_index)}"
         )
@@ -85,7 +106,9 @@ class QueryExpansionService:
             logger.error(f"Error loading pretrained model: {str(e)}")
             raise
 
-    async def expand_query(self, query: str, threshold: float = 0.7, limit: int = -1) -> Dict[str, Any]:
+    async def expand_query(
+        self, query: str, threshold: float = 0.7, limit: int = -1
+    ) -> Dict[str, Any]:
         """
         Melakukan ekspansi query menggunakan Word2Vec.
 
@@ -97,9 +120,11 @@ class QueryExpansionService:
         Returns:
             Dictionary berisi query original dan expanded, serta term-term yang ditambahkan.
         """
-        if not self.model:
-            raise ValueError("Word2Vec model belum dilatih atau dimuat!")
-        
+        if not self._is_trained:
+            raise ValueError(
+                "Word2Vec model belum dilatih! Gunakan ensure_model_trained() terlebih dahulu."
+            )
+
         isLimited = limit > -1
 
         # Preprocess query
@@ -116,12 +141,12 @@ class QueryExpansionService:
             similar_terms = await self.get_similar_terms(term, threshold)
             if similar_terms:
                 expansion_terms[term] = similar_terms
-                if (isLimited):
+                if isLimited:
                     for term_dict in similar_terms:
                         term_dict["source"] = term  # keep track of original term
                         all_expansion_candidates.append(term_dict)
 
-        if (isLimited):
+        if isLimited:
             # Urutkan berdasarkan similarity (descending) dan potong berdasarkan limit
             all_expansion_candidates.sort(key=lambda x: x["similarity"], reverse=True)
             all_expansion_candidates = all_expansion_candidates[:limit]
@@ -130,14 +155,15 @@ class QueryExpansionService:
             returned_expansion_terms = {}
             for item in all_expansion_candidates:
                 source = item["source"]
-                returned_expansion_terms.setdefault(source, []).append({
-                    "term": item["term"],
-                    "similarity": item["similarity"]
-                })
+                returned_expansion_terms.setdefault(source, []).append(
+                    {"term": item["term"], "similarity": item["similarity"]}
+                )
 
             # Final expanded terms
             expansion_terms = returned_expansion_terms
-            expanded_terms = query_terms + [item["term"] for item in all_expansion_candidates]
+            expanded_terms = query_terms + [
+                item["term"] for item in all_expansion_candidates
+            ]
         else:
             # Gabungkan query asli dengan term ekspansi
             expanded_terms = query_terms.copy()

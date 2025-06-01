@@ -16,10 +16,25 @@ logger = logging.getLogger(__name__)
 
 STOPWORDS: Set[str] = set()
 import nltk
-nltk.download('punkt_tab')
-nltk.download('stopwords')
-from nltk.corpus import stopwords
-stop_words = set(stopwords.words("english"))
+
+# NLTK data sudah didownload saat startup aplikasi
+# Lazy loading untuk stopwords
+_stop_words_cache = None
+
+
+def get_stopwords() -> Set[str]:
+    """Lazy loading untuk stopwords."""
+    global _stop_words_cache
+    if _stop_words_cache is None:
+        try:
+            from nltk.corpus import stopwords
+
+            _stop_words_cache = set(stopwords.words("english"))
+        except Exception as e:
+            logger.warning(f"Could not load stopwords: {e}")
+            _stop_words_cache = set()  # Fallback ke empty set
+    return _stop_words_cache
+
 
 stemmer = PorterStemmer()
 
@@ -34,8 +49,13 @@ def tokenize(text: str) -> List[str]:
     Returns:
         List token hasil tokenisasi.
     """
-    tokenized_text = word_tokenize(text)
-    return (tokenized_text)
+    try:
+        tokenized_text = word_tokenize(text)
+        return tokenized_text
+    except Exception as e:
+        logger.warning(f"Error in tokenization, using simple split: {e}")
+        # Fallback ke simple split jika word_tokenize gagal
+        return text.split()
 
 
 def remove_stopwords(tokens: List[str]) -> List[str]:
@@ -50,10 +70,10 @@ def remove_stopwords(tokens: List[str]) -> List[str]:
     """
     filtered_sent = []
     for w in tokens:
-        if (w not in stop_words):
+        if w not in get_stopwords():
             filtered_sent.append(w)
-    
-    return (filtered_sent)
+
+    return filtered_sent
 
 
 def stem_word(word: str) -> str:
@@ -97,9 +117,9 @@ def preprocess_text(
         List token hasil preprocessing, lowercase
     """
     tokens = tokenize(text)
-    if (use_stemming):
+    if use_stemming:
         tokens = stem_tokens(tokens)
-    if (use_stopword_removal):
+    if use_stopword_removal:
         tokens = remove_stopwords(tokens)
-    
-    return ([token.lower() for token in tokens])
+
+    return [token.lower() for token in tokens]

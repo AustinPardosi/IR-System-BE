@@ -3,14 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 import nltk
 import uvicorn
-from app.services.query_expansion_service import QueryExpansionService
+import os
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Query Expansion Service
-qe_service: QueryExpansionService = None
+# Global Query Expansion Service
+qe_service = None
 
 app = FastAPI(
     title="IR-System-BE",
@@ -38,33 +38,72 @@ app.include_router(api.router)
 
 @app.on_event("startup")
 async def startup_event():
-    nltk.download("punkt")
-    nltk.download("punkt_tab")
-    nltk.download("stopwords")
-
+    """Download NLTK data dan training Word2Vec model saat startup."""
     global qe_service
-    qe_service = await QueryExpansionService.create(
-        document_path="IRTestCollection/cisi.all"
-    )
-    logger.info("QueryExpansionService initialized on startup")
+
+    logger.info("=== Starting IR-System-BE ===")
+
+    # 1. Download NLTK data
+    logger.info("Downloading NLTK data...")
+    nltk.download("punkt", quiet=True)
+    nltk.download("punkt_tab", quiet=True)
+    nltk.download("stopwords", quiet=True)
+    logger.info("✅ NLTK data downloaded successfully")
+
+    # 2. Training Word2Vec model
+    try:
+        logger.info("🚀 Training Word2Vec model...")
+
+        # Import di sini setelah NLTK data didownload
+        from app.services.query_expansion_service import QueryExpansionService
+
+        # Coba beberapa path yang mungkin
+        possible_paths = [
+            "app/data/parsing/cisi.all",
+            "IRTestCollection/cisi.all",
+            "/app/data/parsing/cisi.all",
+            "/app/IRTestCollection/cisi.all",
+        ]
+
+        document_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                document_path = path
+                logger.info(f"Found CISI dataset at: {path}")
+                break
+
+        if document_path:
+            qe_service = await QueryExpansionService.create(document_path)
+            logger.info("✅ Word2Vec model trained and ready!")
+        else:
+            logger.warning("⚠️ CISI dataset not found in any expected location")
+            qe_service = None
+
+    except Exception as e:
+        logger.error(f"❌ Error training Word2Vec: {e}")
+        qe_service = None
+
+    logger.info("=== IR-System-BE ready to serve! ===")
+
+
+def get_query_expansion_service():
+    """Dependency untuk mendapatkan QueryExpansionService yang sudah dilatih."""
+    if qe_service is None:
+        raise HTTPException(
+            status_code=503,
+            detail="QueryExpansionService not available. Model training failed or CISI dataset not found.",
+        )
+    return qe_service
 
 
 @app.get("/")
-async def root():
-    return {"message": "Selamat datang di IR-System-BE"}
+async def read_root():
+    return {"message": "IR-System-BE API is running!"}
 
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "IR-System-BE"}
-
-
-def get_query_expansion_service():
-    if not qe_service or not qe_service.model:
-        raise HTTPException(
-            status_code=500, detail="QueryExpansionService not initialized."
-        )
-    return qe_service
 
 
 if __name__ == "__main__":
