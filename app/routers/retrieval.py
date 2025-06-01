@@ -18,7 +18,6 @@ from app.models.query_models import (
     BatchQueryInput,
     RetrievalResult,
 )
-from main import get_query_expansion_service
 
 logger = logging.getLogger(__name__)
 
@@ -53,19 +52,27 @@ async def batch_query(
     return {"message": "Batch query placeholder"}
 
 
-@router.get("/inverted-file")
-async def get_inverted_file(documents: Dict[str, Any], use_stemming: bool, use_stopword_removal: bool, document_weighting_method: Dict[str, bool]):
+@router.post("/inverted-file")
+async def get_inverted_file(
+    documents: Dict[str, Any],
+    use_stemming: bool,
+    use_stopword_removal: bool,
+    document_weighting_method: Dict[str, bool],
+):
     """
     Endpoint untuk mendapatkan inverted file.
     """
-    return RetrievalService.create_inverted_file(documents, use_stemming, use_stopword_removal, document_weighting_method)
+    return RetrievalService.create_inverted_file(
+        documents, use_stemming, use_stopword_removal, document_weighting_method
+    )
+
 
 @router.get("/expand-query")
 async def expand_query(
-    q: str = "retrieval system", 
-    threshold: float = 0.7, 
+    q: str = "retrieval system",
+    threshold: float = 0.7,
     limit: int = -1,
-    qe_service: QueryExpansionService = Depends(get_query_expansion_service)
+    qe_service: QueryExpansionService = Depends(get_query_expansion_service),
 ):
     try:
         result = await qe_service.expand_query(q, threshold, limit)
@@ -73,4 +80,3 @@ async def expand_query(
     except Exception as e:
         logger.exception("Error during query expansion")
         raise HTTPException(status_code=500, detail=str(e))
-    

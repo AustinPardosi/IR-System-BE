@@ -1,1 +1,5 @@
-# Init file untuk package routers
+"""
+Routers package
+"""
+
+__all__ = ["documents", "retrieval", "api"]

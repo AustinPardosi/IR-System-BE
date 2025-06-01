@@ -28,11 +28,12 @@ app.add_middleware(
 )
 
 # Import router (akan diimplementasikan nanti)
-from app.routers import documents, retrieval
+from app.routers import documents, retrieval, api
 
 # Daftarkan router
 app.include_router(documents.router)
 app.include_router(retrieval.router)
+app.include_router(api.router)
 
 
 @app.on_event("startup")
@@ -40,9 +41,11 @@ async def startup_event():
     nltk.download("punkt")
     nltk.download("punkt_tab")
     nltk.download("stopwords")
-    
+
     global qe_service
-    qe_service = await QueryExpansionService.create(document_path="IRTestCollection/cisi.all")
+    qe_service = await QueryExpansionService.create(
+        document_path="IRTestCollection/cisi.all"
+    )
     logger.info("QueryExpansionService initialized on startup")
 
 
@@ -58,8 +61,11 @@ async def health_check():
 
 def get_query_expansion_service():
     if not qe_service or not qe_service.model:
-        raise HTTPException(status_code=500, detail="QueryExpansionService not initialized.")
+        raise HTTPException(
+            status_code=500, detail="QueryExpansionService not initialized."
+        )
     return qe_service
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
