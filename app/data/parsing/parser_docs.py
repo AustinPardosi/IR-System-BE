@@ -1,6 +1,6 @@
 import json
 
-with open(r"parsing\cisi.all", "r", encoding="utf-8") as file:
+with open(r"D:\Kuliah\Semester 8\IF4042 Sistem Temu Balik Informasi\Tubes\IR-System-BE\app\data\parsing\cisi.all", "r", encoding="utf-8") as file:
     lines = file.readlines()
 
 docs = {}
@@ -22,10 +22,10 @@ for line in lines:
         current_doc = ""
         # current_field = None
 
-    elif line == ".T" or line == ".A" or line == ".W" or line == ".B":
-        pass
+    elif line == ".T" or line == ".W":
+        neglect = False
 
-    elif line == ".X":
+    elif line == ".X" or line == ".A" or line == ".B":
         neglect = True
 
     else:
@@ -35,7 +35,7 @@ for line in lines:
 if current_id:
     docs[current_id] = current_doc
 
-with open(r"parsing\parsing_docs.json", "w", encoding="utf-8") as out_file:
+with open(r"D:\Kuliah\Semester 8\IF4042 Sistem Temu Balik Informasi\Tubes\IR-System-BE\app\data\parsing\parsing_docs.json", "w", encoding="utf-8") as out_file:
     json.dump(docs, out_file, indent=2, ensure_ascii=False)
 
 print("Saved")

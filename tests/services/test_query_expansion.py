@@ -4,6 +4,8 @@ Test untuk Query Expansion Service
 
 import os
 import asyncio
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from app.services.query_expansion_service import QueryExpansionService
 
 

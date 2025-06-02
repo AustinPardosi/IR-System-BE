@@ -125,7 +125,7 @@ async def test_tf_idf_1():
 @pytest.mark.asyncio
 async def test_tf_idf_2():
     weight = await service.calculate_tf_idf ("am", "2", freq_file, {"tf_log": True})
-    tf = 1 + math.log(2,2)
+    tf = 1 + math.log2(2)
     assert weight["weight"] == tf
 
 # Kasus 3: Augmented TF
@@ -162,7 +162,7 @@ async def test_tf_idf_6():
 @pytest.mark.asyncio
 async def test_tf_idf_7():
     weight = await service.calculate_tf_idf ("am", "2", freq_file, {"tf_log": True, "use_idf": True})
-    tf = 1 + math.log(2,2)
+    tf = 1 + math.log2(2)
     idf = math.log(4/2, 2)
     assert weight["weight"] == tf*idf
 
