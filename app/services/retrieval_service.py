@@ -40,6 +40,7 @@ class RetrievalService:
         # Placeholder for implementation
         pass
 
+
     async def create_inverted_file(
         self,
         documents: Dict[str, Any],
@@ -78,6 +79,7 @@ class RetrievalService:
                 ]
 
         return inverted_file
+
 
     async def calculate_tf_idf(
         self,
@@ -149,6 +151,7 @@ class RetrievalService:
 
         return {"term": term, "doc": doc, "weight": weight}
 
+
     async def calculate_query_weight(
         self,
         query: str,
@@ -195,7 +198,8 @@ class RetrievalService:
                     query_vector[term] /= norm
         return query_vector
 
-    async def calculate_similarity(
+
+    async def calculate_similarity (
         self,
         query_vector: Dict[str, float],
         document_vectors: Dict[str, Dict[str, float]],
@@ -229,15 +233,16 @@ class RetrievalService:
                 )
             )
 
-        return query_docs_similarities
+        return (query_docs_similarities)
+    
 
-    async def retrieve_document(
+    async def retrieve_document_single_query (
         self,
         query: str,
         inverted_file: Dict[str, Any],
         weighting_method: Dict[str, bool],
-        relevant_doc: List[str],
-    ) -> Tuple[List[str], float]:
+        relevant_doc: List[int],
+    ) -> Tuple[Dict[str, Any], float]:
         """
         Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
 
@@ -248,7 +253,8 @@ class RetrievalService:
             relevant_doc: list id dokumen yang relevan
 
         Returns:
-            List dokumen yang terurut berdasarkan similarity beserta average precisionnya.
+            Tuple kamus ID dokumen ter-retrieved dan similarity-nya dengan query,
+            beserta average precision-nya
         """
 
         query_vector = await self.calculate_query_weight(
@@ -263,10 +269,48 @@ class RetrievalService:
         # Hitung Average Precision (untuk batch query, yang interactive tidak ada relevance judgement)
         average_precision = 0
         if len(relevant_doc) != 0:
-            # relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
-            average_precision = calculate_average_precision(ranked_docs, relevant_doc)
+            relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
+            average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids)
 
-        return ranked_docs, average_precision
+        return sim, average_precision
+    
+
+    async def retrieve_document_batch_query (
+        self,
+        list_query: Dict[str, str],
+        inverted_file: Dict[str,Any],
+        weighting_method: Dict[str, bool],
+        relevant_doc: Dict[str, List[int]],
+    ) -> Tuple[List[Tuple[Dict[str, float], float]], float]:
+        """
+        Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
+
+        Args:
+            list_query: kamus ID query dengan query-nya.
+            inverted_file: file yang berisi bobot-bobot term pada setiap dokumen.
+            weighting_method: metode pembobotan untuk query.
+            relevant_doc: list id dokumen yang relevan
+
+        Returns:
+            Tuple berisi: daftar yang berisi tuple kamus dokumen ter-retreived
+            beserta masing-masing similarity-nya dengan satu query dan average
+            precision-nya, dengan mean avergae precision secara keseluruhan.
+        """
+
+        tuple_sim_ap = []
+        for query_id, query_content in list_query.items():
+            if (query_id in relevant_doc):
+                sim, average_precision = self.retrieve_document_single_query(
+                    query_content, inverted_file, weighting_method, relevant_doc[query_id]
+                )
+                tuple_sim_ap.append((sim, average_precision))
+        
+        average_precisions = [tuple_sim_ap[i][1] for i in range(len(tuple_sim_ap))]
+        mean_average_precision = sum(average_precisions) / len(average_precisions)
+
+        retrieval_result = (tuple_sim_ap, mean_average_precision)
+        return retrieval_result
+    
 
     async def retrieve_document_by_id(
         self,
@@ -281,6 +325,7 @@ class RetrievalService:
                     "content": doc["content"],
                 }
         return {}
+
 
     async def retrieve_document_by_ids(
         self,
