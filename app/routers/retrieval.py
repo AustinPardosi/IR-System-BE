@@ -30,6 +30,8 @@ from app.models.query_models import (
     DocumentRetrievalInput,
     DocumentRetrievalResult,
     DocumentRetrievalInputSimple,
+    BatchRetrievalInput,
+    BatchRetrievalResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,12 +137,17 @@ async def retrieve_documents(request: DocumentRetrievalInputSimple):
         cached_inverted_file = _inverted_file_cache["inverted_file"]
 
         # Panggil method retrieve_document dengan inverted file dari cache
-        ranked_docs, average_precision = await retrieval_service.retrieve_document(
-            query=request.query,
-            inverted_file=cached_inverted_file,
-            weighting_method=request.weighting_method,
-            relevant_doc=request.relevant_doc,
+        similarity_results, average_precision = (
+            await retrieval_service.retrieve_document_single_query(
+                query=request.query,
+                inverted_file=cached_inverted_file,
+                weighting_method=request.weighting_method,
+                relevant_doc=request.relevant_doc,
+            )
         )
+
+        # Konversi dictionary similarity menjadi list document IDs yang ter-ranking
+        ranked_docs = list(similarity_results.keys()) if similarity_results else []
 
         logger.info(
             f"Retrieved {len(ranked_docs)} documents with AP: {average_precision}"
@@ -356,3 +363,131 @@ async def get_model_status():
             "vocabulary_size": 0,
             "message": f"Error checking model status: {str(e)}",
         }
+
+
+@router.post("/retrieve-batch", response_model=BatchRetrievalResult)
+async def batch_retrieve_documents(request: BatchRetrievalInput):
+    """
+    Endpoint untuk batch retrieval menggunakan cached inverted file.
+
+    ⭐ PENTING: Endpoint ini menggunakan inverted file yang sudah di-cache dari endpoint GET /inverted-file.
+    Pastikan Anda sudah memanggil GET /inverted-file terlebih dahulu sebelum menggunakan endpoint ini.
+
+    **Contoh Request Body:**
+    ```json
+    {
+        "query_file": "D://path/to/queries.xml",
+        "relevant_doc": {
+            "1": ["1", "4", "5", "6"],
+            "2": ["2", "4", "3"]
+        },
+        "weighting_method": {
+            "tf_raw": true,
+            "tf_log": false,
+            "tf_binary": false,
+            "tf_augmented": false,
+            "use_idf": true,
+            "use_normalization": true
+        }
+    }
+    ```
+
+    **Response:**
+    - status: Status operasi batch retrieval
+    - total_queries: Total query yang diproses
+    - mean_average_precision: MAP untuk semua query
+    - query_results: Detail hasil untuk setiap query
+    - processing_info: Info tambahan proses
+
+    Args:
+        request: BatchRetrievalInput berisi query_file, relevant_doc, dan weighting_method
+
+    Returns:
+        BatchRetrievalResult berisi hasil batch retrieval dan MAP
+
+    Raises:
+        HTTPException: Jika terjadi error atau cache belum tersedia
+    """
+    global _inverted_file_cache
+
+    try:
+        # ✅ CEK APAKAH CACHE TERSEDIA
+        if (
+            not _inverted_file_cache["is_cached"]
+            or _inverted_file_cache["inverted_file"] is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="❌ Inverted file cache tidak tersedia. Silakan panggil GET /api/retrieval/inverted-file terlebih dahulu untuk generate dan cache inverted file.",
+            )
+
+        logger.info(f"Processing batch retrieval using cached inverted file")
+        logger.info(f"Query file: {request.query_file}")
+        logger.info(f"Total queries in relevant_doc: {len(request.relevant_doc)}")
+
+        # Validasi file path exists
+        import os
+
+        if not os.path.exists(request.query_file):
+            raise HTTPException(
+                status_code=400,
+                detail=f"❌ Query file tidak ditemukan: {request.query_file}",
+            )
+
+        # Inisialisasi service
+        retrieval_service = RetrievalService()
+
+        # ⭐ GUNAKAN INVERTED FILE DARI CACHE
+        cached_inverted_file = _inverted_file_cache["inverted_file"]
+
+        # Panggil batch retrieval function dengan filepath dan relevant_doc
+        batch_results, mean_average_precision = (
+            await retrieval_service.retrieve_document_batch_query(
+                filename=request.query_file,
+                inverted_file=cached_inverted_file,
+                weighting_method=request.weighting_method,
+                relevant_doc=request.relevant_doc,
+            )
+        )
+
+        # Format hasil untuk response
+        query_results = []
+        for i, (similarity_results, average_precision) in enumerate(batch_results):
+            query_results.append(
+                {
+                    "query_index": i + 1,
+                    "average_precision": average_precision,
+                    "total_retrieved": len(similarity_results),
+                    "top_documents": (
+                        list(similarity_results.keys())[:10]
+                        if similarity_results
+                        else []
+                    ),
+                }
+            )
+
+        logger.info(
+            f"Batch retrieval completed: {len(batch_results)} queries processed, MAP: {mean_average_precision:.4f}"
+        )
+
+        return BatchRetrievalResult(
+            status="success",
+            total_queries=len(batch_results),
+            mean_average_precision=mean_average_precision,
+            query_results=query_results,
+            processing_info={
+                "query_file_path": request.query_file,
+                "total_relevant_queries": len(request.relevant_doc),
+                "weighting_method": request.weighting_method,
+                "cache_terms_count": len(cached_inverted_file),
+            },
+        )
+
+    except HTTPException:
+        # Re-raise HTTPException yang sudah ada
+        raise
+    except Exception as e:
+        logger.exception("Error saat melakukan batch retrieval")
+        raise HTTPException(
+            status_code=500, detail=f"Error during batch retrieval: {str(e)}"
+        )

@@ -115,3 +115,39 @@ class RetrievalResult(BaseModel):
 
     # Placeholder for retrieval result
     pass
+
+
+class BatchRetrievalInput(BaseModel):
+    """
+    Model untuk batch retrieval input yang menggunakan cached inverted file.
+    Menggunakan filepath dan relevant_doc dalam JSON body.
+    """
+
+    query_file: str = Field(
+        ...,
+        description="Filepath string ke file query (contoh: 'D://path/to/queries.xml')",
+    )
+    relevant_doc: Dict[str, List[str]] = Field(
+        ..., description="Dictionary berisi query_id dan list document_id yang relevan"
+    )
+    weighting_method: Dict[str, bool] = Field(
+        ..., description="Metode pembobotan yang digunakan untuk query"
+    )
+
+
+class BatchRetrievalResult(BaseModel):
+    """
+    Model untuk hasil batch retrieval.
+    """
+
+    status: str = Field(..., description="Status operasi batch retrieval")
+    total_queries: int = Field(..., description="Total query yang diproses")
+    mean_average_precision: float = Field(
+        ..., description="Mean Average Precision untuk semua query"
+    )
+    query_results: List[Dict[str, Any]] = Field(
+        ..., description="Detail hasil retrieval untuk setiap query"
+    )
+    processing_info: Dict[str, Any] = Field(
+        ..., description="Informasi proses batch retrieval"
+    )

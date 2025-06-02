@@ -41,7 +41,6 @@ class RetrievalService:
         # Placeholder for implementation
         pass
 
-
     async def create_inverted_file(
         self,
         documents: Dict[str, Any],
@@ -80,7 +79,6 @@ class RetrievalService:
                 ]
 
         return inverted_file
-
 
     async def calculate_tf_idf(
         self,
@@ -152,7 +150,6 @@ class RetrievalService:
 
         return {"term": term, "doc": doc, "weight": weight}
 
-
     async def calculate_query_weight(
         self,
         query: str,
@@ -199,8 +196,7 @@ class RetrievalService:
                     query_vector[term] /= norm
         return query_vector
 
-
-    async def calculate_similarity (
+    async def calculate_similarity(
         self,
         query_vector: Dict[str, float],
         document_vectors: Dict[str, Dict[str, float]],
@@ -234,10 +230,9 @@ class RetrievalService:
                 )
             )
 
-        return (query_docs_similarities)
-    
+        return query_docs_similarities
 
-    async def retrieve_document_single_query (
+    async def retrieve_document_single_query(
         self,
         query: str,
         inverted_file: Dict[str, Any],
@@ -271,15 +266,16 @@ class RetrievalService:
         average_precision = 0
         if len(relevant_doc) != 0:
             relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
-            average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids)
+            average_precision = calculate_average_precision(
+                ranked_docs, relevant_doc_ids
+            )
 
         return sim, average_precision
-    
 
-    async def retrieve_document_batch_query (
+    async def retrieve_document_batch_query(
         self,
         filename,
-        inverted_file: Dict[str,Any],
+        inverted_file: Dict[str, Any],
         weighting_method: Dict[str, bool],
         relevant_doc: Dict[str, List[str]],
     ) -> Tuple[List[Tuple[Dict[str, float], float]], float]:
@@ -301,19 +297,20 @@ class RetrievalService:
         tuple_sim_ap = []
 
         for query_id, query_content in list_query.items():
-            if (query_id in relevant_doc):
-                sim, average_precision = self.retrieve_document_single_query(
+            if query_id in relevant_doc:
+                sim, average_precision = await self.retrieve_document_single_query(
                     str(query_content["title"] + " " + query_content["words"]),
-                    inverted_file, weighting_method, relevant_doc[query_id]
+                    inverted_file,
+                    weighting_method,
+                    relevant_doc[query_id],
                 )
                 tuple_sim_ap.append((sim, average_precision))
-        
+
         average_precisions = [tuple_sim_ap[i][1] for i in range(len(tuple_sim_ap))]
         mean_average_precision = sum(average_precisions) / len(average_precisions)
 
         retrieval_result = (tuple_sim_ap, mean_average_precision)
         return retrieval_result
-    
 
     async def retrieve_document_by_id(
         self,
@@ -328,7 +325,6 @@ class RetrievalService:
                     "content": doc["content"],
                 }
         return {}
-
 
     async def retrieve_document_by_ids(
         self,
