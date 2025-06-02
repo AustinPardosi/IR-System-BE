@@ -143,6 +143,49 @@ class RetrievalService:
             "doc": doc,
             "weight": weight
         }
+    
+    async def calculate_query_weight (
+        self, query: str, weighting_method: Dict[str,bool], inverted_file: Dict[str,Any]
+    ) -> Dict[str, Any]:
+        # Pembentukan vektor query
+        query_terms =  tokenize(query) 
+        term_freq = {}
+        for term in query_terms:
+            term_freq[term] = term_freq.get(term, 0) + 1
+        max_tf = max(term_freq.values()) if term_freq else 1
+
+        # Perhitungan bobot query
+        N = len({doc_id for postings in inverted_file.values() for doc_id in postings})
+
+        def get_tf_weight(tf: int) -> float:
+            if weighting_method.get("tf_raw"):
+                return tf
+            elif weighting_method.get("tf_augmented"):
+                return 0.5 + 0.5 * (tf / max_tf)
+            elif weighting_method.get("tf_binary"):
+                return 1.0 if tf > 0 else 0.0
+            elif weighting_method.get("tf_logarithmic"):
+                return 1.0 + math.log(tf) if tf > 0 else 0.0
+            return tf
+
+        query_vector = {}
+        for term, tf in term_freq.items():
+            tf_weight = get_tf_weight(tf)
+            idf = 0.0
+            if term in inverted_file:
+                df = len(inverted_file[term])
+                if df > 0:
+                    idf = math.log(N / df)
+            weight = tf_weight * idf if weighting_method.get("use_idf") else tf_weight
+            if weight > 0:
+                query_vector[term] = weight
+
+        if weighting_method.get("use_normalization"):
+            norm = math.sqrt(sum(w ** 2 for w in query_vector.values()))
+            if norm > 0:
+                for term in query_vector:
+                    query_vector[term] /= norm
+        return query_vector
 
 
     async def calculate_similarity (
@@ -196,44 +239,7 @@ class RetrievalService:
             List dokumen yang terurut berdasarkan similarity beserta average precisionnya.
         """
 
-        # Pembentukan vektor query
-        query_terms =  tokenize(query) 
-        term_freq = {}
-        for term in query_terms:
-            term_freq[term] = term_freq.get(term, 0) + 1
-        max_tf = max(term_freq.values()) if term_freq else 1
-
-        # Perhitungan bobot query
-        N = len({doc_id for postings in inverted_file.values() for doc_id in postings})
-
-        def get_tf_weight(tf: int) -> float:
-            if weighting_method.get("tf_raw"):
-                return tf
-            elif weighting_method.get("tf_augmented"):
-                return 0.5 + 0.5 * (tf / max_tf)
-            elif weighting_method.get("tf_binary"):
-                return 1.0 if tf > 0 else 0.0
-            elif weighting_method.get("tf_logarithmic"):
-                return 1.0 + math.log(tf) if tf > 0 else 0.0
-            return tf
-
-        query_vector = {}
-        for term, tf in term_freq.items():
-            tf_weight = get_tf_weight(tf)
-            idf = 0.0
-            if term in inverted_file:
-                df = len(inverted_file[term])
-                if df > 0:
-                    idf = math.log(N / df)
-            weight = tf_weight * idf if weighting_method.get("use_idf") else tf_weight
-            if weight > 0:
-                query_vector[term] = weight
-
-        if weighting_method.get("use_normalization"):
-            norm = math.sqrt(sum(w ** 2 for w in query_vector.values()))
-            if norm > 0:
-                for term in query_vector:
-                    query_vector[term] /= norm
+        query_vector = self.calculate_query_weight(query, weighting_method, inverted_file)
 
         # Hitung similarity
         sim = await self.calculate_similarity(query_vector, inverted_file)
