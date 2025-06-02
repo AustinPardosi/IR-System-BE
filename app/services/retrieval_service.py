@@ -219,13 +219,13 @@ class RetrievalService:
         return (query_docs_similarities)
     
 
-    async def retrieve_document (
+    async def retrieve_document_single_query (
         self,
         query: str,
         inverted_file: Dict[str,Any],
         weighting_method: Dict[str, bool],
         relevant_doc: List[int],
-    ) -> Tuple[List[str], float]:
+    ) -> Tuple[Dict[str, Any], float]:
         """
         Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
 
@@ -252,8 +252,46 @@ class RetrievalService:
             relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
             average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids)
 
-        return ranked_docs, average_precision
+        return sim, average_precision
     
+
+    async def retrieve_document_batch_query (
+        self,
+        list_query: Dict[str, str],
+        inverted_file: Dict[str,Any],
+        weighting_method: Dict[str, bool],
+        relevant_doc: Dict[str, List[int]],
+    ) -> Tuple[List[Tuple[Dict[str, float], float]], float]:
+        """
+        Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
+
+        Args:
+            list_query: kamus ID query dengan query-nya.
+            inverted_file: file yang berisi bobot-bobot term pada setiap dokumen.
+            weighting_method: metode pembobotan untuk query.
+            relevant_doc: list id dokumen yang relevan
+
+        Returns:
+            Tuple berisi: daftar yang berisi tuple kamus dokumen ter-retreived
+            beserta masing-masing similarity-nya dengan satu query dan average
+            precision-nya, dengan mean_avergae_precision secara keseluruhan.
+        """
+
+        tuple_sim_ap = []
+        for query_id, query_content in list_query.items():
+            if (query_id in relevant_doc):
+                sim, average_precision = self.retrieve_document_single_query(
+                    query_content, inverted_file, weighting_method, relevant_doc[query_id]
+                )
+                tuple_sim_ap.append((sim, average_precision))
+        
+        average_precisions = [tuple_sim_ap[i][1] for i in range(len(tuple_sim_ap))]
+        mean_average_precision = sum(average_precisions) / len(average_precisions)
+
+        retrieval_result = (tuple_sim_ap, mean_average_precision)
+        return retrieval_result
+    
+
     async def retrieve_document_by_id(
         self,
         id: str,
@@ -267,6 +305,7 @@ class RetrievalService:
                     'content': doc['content']
                 }
         return {} 
+
 
     async def retrieve_document_by_ids(
         self,
