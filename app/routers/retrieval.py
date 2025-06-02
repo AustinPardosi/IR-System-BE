@@ -5,6 +5,7 @@ Router untuk endpoint terkait retrieval:
 1. Interactive query
 2. Batch query
 3. Inverted file
+4. Model status
 """
 
 from fastapi import (
@@ -12,9 +13,7 @@ from fastapi import (
     UploadFile,
     File,
     Form,
-    Depends,
     HTTPException,
-    Body,
     Query,
 )
 from typing import List, Dict, Any, Optional
@@ -209,44 +208,3 @@ async def get_model_status():
             "vocabulary_size": 0,
             "message": f"Error checking model status: {str(e)}",
         }
-
-
-@router.get("/expand-query")
-async def expand_query(
-    q: str = Query(..., description="Query string yang akan di-expand"),
-    threshold: float = Query(
-        0.7, description="Threshold similarity untuk word expansion"
-    ),
-    limit: int = Query(
-        -1, description="Limit jumlah kata hasil expansion (-1 untuk unlimited)"
-    ),
-):
-    """
-    Endpoint untuk melakukan query expansion.
-
-    Parameters:
-    - q: Query string yang akan di-expand
-    - threshold: Threshold similarity untuk word expansion (default: 0.7)
-    - limit: Limit jumlah kata hasil expansion, -1 untuk unlimited (default: -1)
-    """
-    try:
-        # Import function di sini untuk menghindari circular import
-        from main import get_query_expansion_service
-
-        # Dapatkan service yang sudah dilatih saat startup
-        qe_service = get_query_expansion_service()
-
-        # Lakukan query expansion (model sudah siap!)
-        result = await qe_service.expand_query(q, threshold, limit)
-        return result
-    except HTTPException:
-        # Jika service tidak tersedia, coba training on-demand sebagai fallback
-        logger.warning("Using fallback: training Word2Vec on-demand")
-        qe_service = QueryExpansionService()
-        document_path = os.path.join("app", "data", "cisi", "cisi.all")
-        await qe_service.ensure_model_trained(document_path)
-        result = await qe_service.expand_query(q, threshold, limit)
-        return result
-    except Exception as e:
-        logger.exception("Error during query expansion")
-        raise HTTPException(status_code=500, detail=str(e))

@@ -5,7 +5,7 @@ services:
         build: .
         container_name: ir-system-be
         ports:
-            - "8000:8000"
+            - "8080:8080"
         volumes:
             - .:/app
         environment:

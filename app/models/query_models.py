@@ -7,6 +7,20 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 
 
+class QueryExpansionInput(BaseModel):
+    """
+    Model untuk query expansion input.
+    """
+
+    query: str = Field(..., description="Query text yang akan di-expand")
+    threshold: float = Field(
+        0.7, description="Threshold similarity untuk word expansion", ge=0.0, le=1.0
+    )
+    limit: int = Field(
+        -1, description="Limit jumlah kata hasil expansion (-1 untuk unlimited)", ge=-1
+    )
+
+
 class InteractiveQueryInput(BaseModel):
     """
     Model untuk interactive query input.

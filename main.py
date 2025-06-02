@@ -27,13 +27,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import router (akan diimplementasikan nanti)
-from app.routers import documents, retrieval, api
+# Import router
+from app.routers import documents, retrieval, query
 
-# Daftarkan router
-app.include_router(documents.router)
-app.include_router(retrieval.router)
-app.include_router(api.router)
+# Daftarkan router dengan prefix /api
+app.include_router(documents.router, prefix="/api")
+app.include_router(retrieval.router, prefix="/api")
+app.include_router(query.router, prefix="/api")
 
 
 @app.on_event("startup")
@@ -57,33 +57,24 @@ async def startup_event():
         # Import di sini setelah NLTK data didownload
         from app.services.query_expansion_service import QueryExpansionService
 
-        # Coba beberapa path yang mungkin
-        possible_paths = [
-            "app/data/parsing/cisi.all",
-            "IRTestCollection/cisi.all",
-            "/app/data/parsing/cisi.all",
-            "/app/IRTestCollection/cisi.all",
-        ]
+        # Gunakan parsing_docs.json sebagai dataset training
+        document_path = "app/data/parsing/parsing_docs.json"
 
-        document_path = None
-        for path in possible_paths:
-            if os.path.exists(path):
-                document_path = path
-                logger.info(f"Found CISI dataset at: {path}")
-                break
-
-        if document_path:
+        if os.path.exists(document_path):
+            logger.info(f"Found parsing documents at: {document_path}")
             qe_service = await QueryExpansionService.create(document_path)
             logger.info("✅ Word2Vec model trained and ready!")
         else:
-            logger.warning("⚠️ CISI dataset not found in any expected location")
+            logger.warning(
+                "⚠️ parsing_docs.json not found at app/data/parsing/parsing_docs.json"
+            )
             qe_service = None
 
     except Exception as e:
         logger.error(f"❌ Error training Word2Vec: {e}")
         qe_service = None
 
-    logger.info("=== IR-System-BE ready to serve! ===")
+    logger.info("=== IR-System-BE ready to serve on PORT 8080! ===")
 
 
 def get_query_expansion_service():
@@ -91,19 +82,35 @@ def get_query_expansion_service():
     if qe_service is None:
         raise HTTPException(
             status_code=503,
-            detail="QueryExpansionService not available. Model training failed or CISI dataset not found.",
+            detail="QueryExpansionService not available. Model training failed or parsing_docs.json not found.",
         )
     return qe_service
 
 
+@app.get("/api")
+async def api_status():
+    """Main API endpoint - Health check and system status."""
+    return {
+        "message": "IR-System-BE API is running!",
+        "status": "active",
+        "port": 8080,
+        "version": "0.1.0",
+        "endpoints": {
+            "documents": "/api/documents/*",
+            "retrieval": "/api/retrieval/*",
+            "query": "/api/query/*",
+        },
+    }
+
+
 @app.get("/")
 async def read_root():
-    return {"message": "IR-System-BE API is running!"}
+    return {"message": "IR-System-BE API is running! Visit /api for API status"}
 
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "IR-System-BE"}
+    return {"status": "ok", "service": "IR-System-BE", "port": 8080}
 
 
 if __name__ == "__main__":

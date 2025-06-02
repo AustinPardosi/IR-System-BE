@@ -10,6 +10,7 @@ Modul ini bertanggung jawab untuk:
 from typing import List, Dict, Any, Optional
 import logging
 import numpy as np
+import json
 from gensim.models import Word2Vec
 from ..utils.text_preprocessing import preprocess_text
 
@@ -34,8 +35,14 @@ class QueryExpansionService:
         Async factory method to initialize and train Word2Vec model.
         """
         self = cls()
-        documents = self.read_cisi_collection(file_path=document_path)
-        print(f"Loaded {len(documents)} documents")
+
+        # Deteksi format file berdasarkan ekstensi
+        if document_path.endswith(".json"):
+            documents = self.read_json_collection(file_path=document_path)
+        else:
+            documents = self.read_cisi_collection(file_path=document_path)
+
+        print(f"Loaded {len(documents)} documents from {document_path}")
 
         print("Training Word2Vec model...")
         await self.train_word2vec_model(documents)
@@ -52,7 +59,11 @@ class QueryExpansionService:
         """
         if not self._is_trained:
             if document_path:
-                documents = self.read_cisi_collection(file_path=document_path)
+                # Deteksi format file berdasarkan ekstensi
+                if document_path.endswith(".json"):
+                    documents = self.read_json_collection(file_path=document_path)
+                else:
+                    documents = self.read_cisi_collection(file_path=document_path)
                 print(f"Loaded {len(documents)} documents")
                 print("Training Word2Vec model...")
                 await self.train_word2vec_model(documents)
@@ -232,3 +243,25 @@ class QueryExpansionService:
             documents[current_id] = " ".join(current_content)
 
         return documents
+
+    def read_json_collection(self, file_path: str) -> dict:
+        """
+        Membaca koleksi dokumen dari file JSON (parsing_docs.json).
+
+        Args:
+            file_path: Path ke file JSON
+
+        Returns:
+            Dictionary berisi dokumen dengan format {doc_id: content}
+        """
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                documents = json.load(f)
+
+            logger.info(
+                f"Successfully loaded {len(documents)} documents from JSON file"
+            )
+            return documents
+        except Exception as e:
+            logger.error(f"Error reading JSON collection: {str(e)}")
+            raise

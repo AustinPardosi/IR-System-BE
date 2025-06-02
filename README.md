@@ -46,8 +46,8 @@ pip install -r requirements.txt
 python main.py
 ```
 
-4. Akses aplikasi di [http://localhost:8000](http://localhost:8000)
-5. Dokumentasi API tersedia di [http://localhost:8000/docs](http://localhost:8000/docs)
+4. Akses aplikasi di [http://localhost:8080](http://localhost:8080)
+5. Dokumentasi API tersedia di [http://localhost:8080/docs](http://localhost:8080/docs)
 
 ### Menggunakan Docker
 
@@ -62,7 +62,7 @@ docker build -t ir-system-be .
 2. Jalankan container:
 
 ```bash
-docker run -p 8000:8000 ir-system-be
+docker run -p 8080:8080 ir-system-be
 ```
 
 #### Metode 2: Docker Compose (Direkomendasikan)
@@ -85,8 +85,8 @@ docker-compose up -d
 docker-compose down
 ```
 
-4. Akses aplikasi di [http://localhost:8000](http://localhost:8000)
-5. Dokumentasi API tersedia di [http://localhost:8000/docs](http://localhost:8000/docs)
+4. Akses aplikasi di [http://localhost:8080](http://localhost:8080)
+5. Dokumentasi API tersedia di [http://localhost:8080/docs](http://localhost:8080/docs)
 
 ## Endpoint API
 
