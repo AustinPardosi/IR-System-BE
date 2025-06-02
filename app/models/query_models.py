@@ -48,6 +48,39 @@ class InteractiveQueryInput(BaseModel):
     )
 
 
+class DocumentRetrievalInput(BaseModel):
+    """
+    Model untuk document retrieval input.
+    Digunakan untuk melakukan retrieval dokumen dengan inverted file yang sudah ada.
+    """
+
+    query: str = Field(..., description="Query text yang akan dicari")
+    inverted_file: Dict[str, Dict[str, float]] = Field(
+        ..., description="Inverted file berisi bobot term untuk setiap dokumen"
+    )
+    weighting_method: Dict[str, bool] = Field(
+        ..., description="Metode pembobotan yang digunakan untuk query"
+    )
+    relevant_doc: List[int] = Field(
+        default_factory=list, description="List ID dokumen yang relevan untuk evaluasi"
+    )
+
+
+class DocumentRetrievalInputSimple(BaseModel):
+    """
+    Model untuk document retrieval input yang menggunakan cached inverted file.
+    Tidak perlu menyertakan inverted_file di body karena menggunakan cache.
+    """
+
+    query: str = Field(..., description="Query text yang akan dicari")
+    weighting_method: Dict[str, bool] = Field(
+        ..., description="Metode pembobotan yang digunakan untuk query"
+    )
+    relevant_doc: List[int] = Field(
+        default_factory=list, description="List ID dokumen yang relevan untuk evaluasi"
+    )
+
+
 class BatchQueryInput(BaseModel):
     """
     Model untuk batch query input.
@@ -56,6 +89,23 @@ class BatchQueryInput(BaseModel):
 
     # Placeholder for batch query input
     pass
+
+
+class DocumentRetrievalResult(BaseModel):
+    """
+    Model untuk hasil document retrieval.
+    """
+
+    status: str = Field(..., description="Status operasi retrieval")
+    ranked_documents: List[str] = Field(
+        ..., description="List dokumen yang diurutkan berdasarkan similarity"
+    )
+    average_precision: float = Field(
+        ...,
+        description="Average precision untuk evaluasi (0 jika tidak ada relevant_doc)",
+    )
+    total_retrieved: int = Field(..., description="Total dokumen yang ditemukan")
+    query_used: str = Field(..., description="Query yang digunakan untuk retrieval")
 
 
 class RetrievalResult(BaseModel):

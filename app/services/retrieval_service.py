@@ -40,10 +40,12 @@ class RetrievalService:
         # Placeholder for implementation
         pass
 
-
-    async def create_inverted_file (
-        self, documents: Dict[str, Any], use_stemming: bool, use_stopword_removal: bool,
-        document_weighting_method: Dict[str, bool]
+    async def create_inverted_file(
+        self,
+        documents: Dict[str, Any],
+        use_stemming: bool,
+        use_stopword_removal: bool,
+        document_weighting_method: Dict[str, bool],
     ) -> Dict[str, Any]:
         """
         Membuat inverted file dari dokumen.
@@ -60,7 +62,7 @@ class RetrievalService:
         for doc_key, doc_value in documents.items():
             tokens = preprocess_text(doc_value, use_stemming, use_stopword_removal)
             tokens_freq = Counter(tokens)
-            
+
             # Mengisi freq_file
             freq_file[doc_key] = tokens_freq
 
@@ -68,14 +70,21 @@ class RetrievalService:
         # Menghitung bobot term dan menyusun inverted file
         for doc_key, doc_freq in freq_file.items():
             for token_key, _ in doc_freq.items():
-                weight = await self.calculate_tf_idf (token_key, doc_key, freq_file, document_weighting_method)
-                inverted_file.setdefault(weight["term"], {})[weight["doc"]] = weight["weight"]
+                weight = await self.calculate_tf_idf(
+                    token_key, doc_key, freq_file, document_weighting_method
+                )
+                inverted_file.setdefault(weight["term"], {})[weight["doc"]] = weight[
+                    "weight"
+                ]
 
         return inverted_file
 
-
-    async def calculate_tf_idf (
-        self, term: str, doc: str, freq_file: Dict[str, Any], weighting_method: Dict[str, bool]
+    async def calculate_tf_idf(
+        self,
+        term: str,
+        doc: str,
+        freq_file: Dict[str, Any],
+        weighting_method: Dict[str, bool],
     ) -> Dict[str, Any]:
         """
         Menghitung bobot TF-IDF pada term di doc tertentu.
@@ -102,7 +111,7 @@ class RetrievalService:
 
         if freq_in_doc == 0:
             return {"term": term, "doc": doc, "weight": 0}
-        
+
         tf = 1
         idf = 1
         normalization = 1
@@ -115,7 +124,7 @@ class RetrievalService:
         elif tf_binary:
             tf = 1
         elif tf_augmented:
-            terms = freq_file.get(doc,{})
+            terms = freq_file.get(doc, {})
             freqs_in_doc = [x for x in terms.values()]
             max_freq = max(freqs_in_doc) if freqs_in_doc else 1
             tf = 0.5 + 0.5 * (freq_in_doc / max_freq)
@@ -133,22 +142,21 @@ class RetrievalService:
             doc_length = sum(freq_file.get(doc, {}).values())
             if doc_length == 0:
                 doc_length = 1  # Menghindari pembagian 0
-            
-            normalization = 1/doc_length
 
-        weight = tf*idf*normalization
+            normalization = 1 / doc_length
 
-        return {
-            "term": term,
-            "doc": doc,
-            "weight": weight
-        }
-    
-    async def calculate_query_weight (
-        self, query: str, weighting_method: Dict[str,bool], inverted_file: Dict[str,Any]
+        weight = tf * idf * normalization
+
+        return {"term": term, "doc": doc, "weight": weight}
+
+    async def calculate_query_weight(
+        self,
+        query: str,
+        weighting_method: Dict[str, bool],
+        inverted_file: Dict[str, Any],
     ) -> Dict[str, Any]:
         # Pembentukan vektor query
-        query_terms =  tokenize(query) 
+        query_terms = tokenize(query)
         term_freq = {}
         for term in query_terms:
             term_freq[term] = term_freq.get(term, 0) + 1
@@ -181,14 +189,13 @@ class RetrievalService:
                 query_vector[term] = weight
 
         if weighting_method.get("use_normalization"):
-            norm = math.sqrt(sum(w ** 2 for w in query_vector.values()))
+            norm = math.sqrt(sum(w**2 for w in query_vector.values()))
             if norm > 0:
                 for term in query_vector:
                     query_vector[term] /= norm
         return query_vector
 
-
-    async def calculate_similarity (
+    async def calculate_similarity(
         self,
         query_vector: Dict[str, float],
         document_vectors: Dict[str, Dict[str, float]],
@@ -204,27 +211,32 @@ class RetrievalService:
             List dokumen dengan nilai similaritas, diurutkan.
         """
         query_docs_similarities = {}
-        
+
         for query_key, _ in query_vector.items():
-            if (query_key in document_vectors.keys()):
+            if query_key in document_vectors.keys():
                 for doc, _ in document_vectors[query_key].items():
                     query_docs_similarities.setdefault(doc, 0)
-                    query_docs_similarities[doc] += ( query_vector[query_key] * document_vectors[query_key][doc])
-        
-        if (len(query_docs_similarities) > 0):
-            query_docs_similarities = dict ( sorted (
-                query_docs_similarities.items(), key=lambda item: item[1], reverse=True
-            ))
+                    query_docs_similarities[doc] += (
+                        query_vector[query_key] * document_vectors[query_key][doc]
+                    )
 
-        return (query_docs_similarities)
-    
+        if len(query_docs_similarities) > 0:
+            query_docs_similarities = dict(
+                sorted(
+                    query_docs_similarities.items(),
+                    key=lambda item: item[1],
+                    reverse=True,
+                )
+            )
 
-    async def retrieve_document (
+        return query_docs_similarities
+
+    async def retrieve_document(
         self,
         query: str,
-        inverted_file: Dict[str,Any],
+        inverted_file: Dict[str, Any],
         weighting_method: Dict[str, bool],
-        relevant_doc: List[int],
+        relevant_doc: List[str],
     ) -> Tuple[List[str], float]:
         """
         Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
@@ -239,34 +251,36 @@ class RetrievalService:
             List dokumen yang terurut berdasarkan similarity beserta average precisionnya.
         """
 
-        query_vector = self.calculate_query_weight(query, weighting_method, inverted_file)
+        query_vector = await self.calculate_query_weight(
+            query, weighting_method, inverted_file
+        )
 
         # Hitung similarity
         sim = await self.calculate_similarity(query_vector, inverted_file)
-            
+
         ranked_docs = [doc_id for doc_id in sim]
 
         # Hitung Average Precision (untuk batch query, yang interactive tidak ada relevance judgement)
         average_precision = 0
         if len(relevant_doc) != 0:
-            relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
-            average_precision = calculate_average_precision(ranked_docs, relevant_doc_ids)
+            # relevant_doc_ids = [str(doc_id) for doc_id in relevant_doc]
+            average_precision = calculate_average_precision(ranked_docs, relevant_doc)
 
         return ranked_docs, average_precision
-    
+
     async def retrieve_document_by_id(
         self,
         id: str,
         documents: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         for doc in documents:
-            if doc['id'] == id:
+            if doc["id"] == id:
                 return {
-                    'author': doc['author'],
-                    'title': doc['title'],
-                    'content': doc['content']
+                    "author": doc["author"],
+                    "title": doc["title"],
+                    "content": doc["content"],
                 }
-        return {} 
+        return {}
 
     async def retrieve_document_by_ids(
         self,
@@ -280,11 +294,8 @@ class RetrievalService:
                 list_of_docs.append(doc)
         return list_of_docs
 
-
-    async def get_weight_by_document_id (
-            self,
-            document_id: str,
-            inverted_file: Dict[str, Any]
+    async def get_weight_by_document_id(
+        self, document_id: str, inverted_file: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Mengambil bobot setiap term dalam dokumen tertentu.
@@ -294,10 +305,10 @@ class RetrievalService:
             inverted_file: inverted file dalam format [term: (doc: weight)]
 
         Returns:
-            Kamus bobot setiap kata dalam dokumen yang diinginkan. 
+            Kamus bobot setiap kata dalam dokumen yang diinginkan.
         """
         doc_dict = {}
         for file_key, file_value in inverted_file.items():
-            if (document_id in file_value.keys()):
+            if document_id in file_value.keys():
                 doc_dict[file_key] = file_value[document_id]
-        return (doc_dict)
+        return doc_dict
