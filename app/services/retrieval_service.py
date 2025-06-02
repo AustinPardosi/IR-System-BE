@@ -22,6 +22,7 @@ from app.test.retrieval_test import tokenize
 from app.utils.evaluation import calculate_average_precision
 
 from ..utils.text_preprocessing import preprocess_text
+from ..data.parsing.func_parser import parser_query
 from collections import Counter
 
 
@@ -277,16 +278,16 @@ class RetrievalService:
 
     async def retrieve_document_batch_query (
         self,
-        list_query: Dict[str, str],
+        filename,
         inverted_file: Dict[str,Any],
         weighting_method: Dict[str, bool],
-        relevant_doc: Dict[str, List[int]],
+        relevant_doc: Dict[str, List[str]],
     ) -> Tuple[List[Tuple[Dict[str, float], float]], float]:
         """
         Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
 
         Args:
-            list_query: kamus ID query dengan query-nya.
+            filename: nama/lokasi file batch query.
             inverted_file: file yang berisi bobot-bobot term pada setiap dokumen.
             weighting_method: metode pembobotan untuk query.
             relevant_doc: list id dokumen yang relevan
@@ -296,12 +297,14 @@ class RetrievalService:
             beserta masing-masing similarity-nya dengan satu query dan average
             precision-nya, dengan mean avergae precision secara keseluruhan.
         """
-
+        list_query = parser_query(filename)
         tuple_sim_ap = []
+
         for query_id, query_content in list_query.items():
             if (query_id in relevant_doc):
                 sim, average_precision = self.retrieve_document_single_query(
-                    query_content, inverted_file, weighting_method, relevant_doc[query_id]
+                    str(query_content["title"] + " " + query_content["words"]),
+                    inverted_file, weighting_method, relevant_doc[query_id]
                 )
                 tuple_sim_ap.append((sim, average_precision))
         
