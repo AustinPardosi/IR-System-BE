@@ -1,12 +1,12 @@
 import json
 
-with open(r"D:\Kuliah\Semester 8\IF4042 Sistem Temu Balik Informasi\Tubes\IR-System-BE\app\data\parsing\cisi.all", "r", encoding="utf-8") as file:
+with open(r"app\data\parsing\cisi.all", "r", encoding="utf-8") as file:
     lines = file.readlines()
 
 docs = {}
-current_doc = ""
+current_doc = {}
+current_field = None
 current_id = None
-neglect = False
 
 for line in lines:
     line = line.strip()
@@ -14,28 +14,38 @@ for line in lines:
         continue
 
     if line.startswith(".I "):
-        neglect = False
         if current_id:
             docs[current_id] = current_doc
 
         current_id = str(int(line[3:]))
-        current_doc = ""
-        # current_field = None
+        current_doc = {
+            "title": "",
+            "author": "",
+            "words": "",
+            "bibliographic": ""
+        }
+        current_field = None
 
-    elif line == ".T" or line == ".W":
-        neglect = False
+    elif line == ".T":
+        current_field = "title"
+    
+    elif line == ".A":
+        current_field = "author"
 
-    elif line == ".X" or line == ".A" or line == ".B":
-        neglect = True
+    elif line == ".W":
+        current_field = "words"
+
+    elif line == ".B":
+        current_field = "bibliographic"
 
     else:
-        if (not neglect):
-            current_doc += " " + line.strip()
+        if current_field:
+            current_doc[current_field] += "" + line.strip()
 
 if current_id:
     docs[current_id] = current_doc
 
-with open(r"D:\Kuliah\Semester 8\IF4042 Sistem Temu Balik Informasi\Tubes\IR-System-BE\app\data\parsing\parsing_docs.json", "w", encoding="utf-8") as out_file:
+with open(r"app\data\parsing\parsing_docs_2.json", "w", encoding="utf-8") as out_file:
     json.dump(docs, out_file, indent=2, ensure_ascii=False)
 
 print("Saved")
