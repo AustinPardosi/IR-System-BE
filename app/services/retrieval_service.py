@@ -155,9 +155,11 @@ class RetrievalService:
         query: str,
         weighting_method: Dict[str, bool],
         inverted_file: Dict[str, Any],
+        use_stemming: bool,
+        use_stopword_removal: bool
     ) -> Dict[str, Any]:
         # Pembentukan vektor query
-        query_terms = tokenize(query)
+        query_terms = preprocess_text(query, use_stemming, use_stopword_removal)
         term_freq = {}
         for term in query_terms:
             term_freq[term] = term_freq.get(term, 0) + 1
@@ -238,6 +240,8 @@ class RetrievalService:
         inverted_file: Dict[str, Any],
         weighting_method: Dict[str, bool],
         relevant_doc: List[str],
+        use_stemming: bool,
+        use_stopword_removal: bool
     ) -> Tuple[Dict[str, Any], float]:
         """
         Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
@@ -254,7 +258,7 @@ class RetrievalService:
         """
 
         query_vector = await self.calculate_query_weight(
-            query, weighting_method, inverted_file
+            query, weighting_method, inverted_file, use_stemming, use_stopword_removal
         )
 
         # Hitung similarity
@@ -278,6 +282,8 @@ class RetrievalService:
         inverted_file: Dict[str, Any],
         weighting_method: Dict[str, bool],
         relevant_doc_filename: str,
+        use_stemming: bool,
+        use_stopword_removal: bool
     ) -> Tuple[
         List[Tuple[Dict[str, float], Tuple[str, str], float]],
         float,
@@ -311,6 +317,8 @@ class RetrievalService:
                     inverted_file,
                     weighting_method,
                     relevant_doc[query_id],
+                    use_stemming,
+                    use_stopword_removal
                 )
                 tuple_sim_ap.append((sim, (query_id, query_content), average_precision))
 

@@ -90,24 +90,24 @@ def calculate_map (
 
 
 # TEST
-all_docs = ["1", "2", "3", "4", "5"]
-retrieved_docs = ["1", "3", "5"]
-relevant_docs = ["1", "4", "5"]
+# all_docs = ["1", "2", "3", "4", "5"]
+# retrieved_docs = ["1", "3", "5"]
+# relevant_docs = ["1", "4", "5"]
 
-print (calculate_precision_at_k(retrieved_docs, relevant_docs, 3))
-print (calculate_average_precision(retrieved_docs, relevant_docs))
+# print (calculate_precision_at_k(retrieved_docs, relevant_docs, 3))
+# print (calculate_average_precision(retrieved_docs, relevant_docs))
 
-all_retrieved_docs = {
-    "A": ["1", "3", "5"],
-    "B": ["4", "2", "1", "6"]
-}
+# all_retrieved_docs = {
+#     "A": ["1", "3", "5"],
+#     "B": ["4", "2", "1", "6"]
+# }
 
-all_relevant_docs = {
-    "A": ["1", "4", "5", "6"],
-    "B": ["2", "4", "3"]
-}
+# all_relevant_docs = {
+#     "A": ["1", "4", "5", "6"],
+#     "B": ["2", "4", "3"]
+# }
 
-print (calculate_map(all_retrieved_docs, all_relevant_docs))
+# print (calculate_map(all_retrieved_docs, all_relevant_docs))
 
 # Output:
 # 0.6666666666666666
