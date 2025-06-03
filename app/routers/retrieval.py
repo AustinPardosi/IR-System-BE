@@ -26,6 +26,8 @@ from app.models.query_models import (
     DocumentRetrievalInputSimple,
     BatchRetrievalInput,
     BatchRetrievalResult,
+    QueryWeightInput,
+    QueryWeightResult,
 )
 from pydantic import BaseModel
 
@@ -430,4 +432,55 @@ async def get_document_weights(document_id: str):
         logger.exception(f"Error saat mengambil bobot untuk dokumen {document_id}")
         raise HTTPException(
             status_code=500, detail=f"Error getting document weights: {str(e)}"
+        )
+
+
+@router.post("/calculate-query-weight", response_model=QueryWeightResult)
+async def calculate_query_weight(request: QueryWeightInput):
+    """
+    Endpoint untuk menghitung bobot setiap term dalam query.
+    Pastikan sudah memanggil GET /inverted-file terlebih dahulu.
+    """
+    global _inverted_file_cache
+
+    try:
+        if (
+            not _inverted_file_cache["is_cached"]
+            or _inverted_file_cache["inverted_file"] is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Inverted file cache tidak tersedia. Silakan panggil GET /api/retrieval/inverted-file terlebih dahulu.",
+            )
+
+        logger.info(f"Calculating query weight for: '{request.query}'")
+        retrieval_service = RetrievalService()
+        cached_inverted_file = _inverted_file_cache["inverted_file"]
+
+        query_vector = await retrieval_service.calculate_query_weight(
+            query=request.query,
+            weighting_method=request.weighting_method,
+            inverted_file=cached_inverted_file,
+        )
+
+        if not query_vector:
+            logger.warning(f"No terms found in query vector for: '{request.query}'")
+
+        logger.info(f"Calculated weights for {len(query_vector)} terms")
+
+        return QueryWeightResult(
+            status="success",
+            query=request.query,
+            query_vector=query_vector,
+            total_terms=len(query_vector),
+            weighting_method=request.weighting_method,
+            message=f"Berhasil menghitung bobot untuk {len(query_vector)} term dalam query",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error saat menghitung bobot query: {request.query}")
+        raise HTTPException(
+            status_code=500, detail=f"Error calculating query weight: {str(e)}"
         )

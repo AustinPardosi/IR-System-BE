@@ -169,3 +169,31 @@ class BatchRetrievalResult(BaseModel):
     processing_info: Dict[str, Any] = Field(
         ..., description="Informasi proses batch retrieval"
     )
+
+
+class QueryWeightInput(BaseModel):
+    """
+    Model untuk input perhitungan bobot query.
+    """
+
+    query: str = Field(..., description="Query text yang akan dihitung bobotnya")
+    weighting_method: Dict[str, bool] = Field(
+        ..., description="Metode pembobotan yang digunakan untuk query"
+    )
+
+
+class QueryWeightResult(BaseModel):
+    """
+    Model untuk hasil perhitungan bobot query.
+    """
+
+    status: str = Field(..., description="Status operasi")
+    query: str = Field(..., description="Query text yang diproses")
+    query_vector: Dict[str, float] = Field(
+        ..., description="Vector bobot query dengan format {term: weight}"
+    )
+    total_terms: int = Field(..., description="Total jumlah term dalam query vector")
+    weighting_method: Dict[str, bool] = Field(
+        ..., description="Metode pembobotan yang digunakan"
+    )
+    message: str = Field(..., description="Pesan informasi")
