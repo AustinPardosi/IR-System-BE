@@ -197,3 +197,31 @@ class QueryWeightResult(BaseModel):
         ..., description="Metode pembobotan yang digunakan"
     )
     message: str = Field(..., description="Pesan informasi")
+
+
+class BatchQueryExpansionInput(BaseModel):
+    """
+    Model untuk batch query expansion input.
+    """
+
+    query_file: str = Field(..., description="Path ke file query (format XML)")
+    threshold: float = Field(
+        0.7, description="Threshold similarity untuk word expansion", ge=0.0, le=1.0
+    )
+    limit: int = Field(
+        -1, description="Limit jumlah kata hasil expansion (-1 untuk unlimited)", ge=-1
+    )
+
+
+class BatchQueryExpansionResult(BaseModel):
+    """
+    Model untuk hasil batch query expansion.
+    """
+
+    status: str = Field(..., description="Status operasi")
+    total_queries: int = Field(..., description="Total query yang diproses")
+    query_results: List[Dict[str, Any]] = Field(
+        ..., description="Hasil expansion untuk setiap query"
+    )
+    parameters: Dict[str, Any] = Field(..., description="Parameter yang digunakan")
+    processing_info: Dict[str, Any] = Field(..., description="Info tambahan proses")
