@@ -127,12 +127,29 @@ class BatchRetrievalInput(BaseModel):
         ...,
         description="Filepath string ke file query (contoh: 'D://path/to/queries.xml')",
     )
-    relevant_doc: Dict[str, List[str]] = Field(
-        ..., description="Dictionary berisi query_id dan list document_id yang relevan"
+    relevant_doc_filename: str = Field(
+        ...,
+        description="Filepath string ke file relevant docs (contoh: 'D://path/to/relevant_docs.json')",
     )
     weighting_method: Dict[str, bool] = Field(
         ..., description="Metode pembobotan yang digunakan untuk query"
     )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "query_file": "D://path/to/queries.xml",
+                "relevant_doc_filename": "D://path/to/relevant_docs.json",
+                "weighting_method": {
+                    "tf_raw": True,
+                    "tf_log": False,
+                    "tf_binary": False,
+                    "tf_augmented": False,
+                    "use_idf": True,
+                    "use_normalization": True,
+                },
+            }
+        }
 
 
 class BatchRetrievalResult(BaseModel):

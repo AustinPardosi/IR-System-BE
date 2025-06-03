@@ -377,10 +377,7 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
     ```json
     {
         "query_file": "D://path/to/queries.xml",
-        "relevant_doc": {
-            "1": ["1", "4", "5", "6"],
-            "2": ["2", "4", "3"]
-        },
+        "relevant_doc_filename": "D://path/to/relevant_docs.json",
         "weighting_method": {
             "tf_raw": true,
             "tf_log": false,
@@ -400,7 +397,7 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
     - processing_info: Info tambahan proses
 
     Args:
-        request: BatchRetrievalInput berisi query_file, relevant_doc, dan weighting_method
+        request: BatchRetrievalInput berisi query_file, relevant_doc_filename, dan weighting_method
 
     Returns:
         BatchRetrievalResult berisi hasil batch retrieval dan MAP
@@ -423,15 +420,21 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
 
         logger.info(f"Processing batch retrieval using cached inverted file")
         logger.info(f"Query file: {request.query_file}")
-        logger.info(f"Total queries in relevant_doc: {len(request.relevant_doc)}")
+        logger.info(f"Relevant doc file: {request.relevant_doc_filename}")
 
-        # Validasi file path exists
+        # Validasi file paths exist
         import os
 
         if not os.path.exists(request.query_file):
             raise HTTPException(
                 status_code=400,
                 detail=f"❌ Query file tidak ditemukan: {request.query_file}",
+            )
+        
+        if not os.path.exists(request.relevant_doc_filename):
+            raise HTTPException(
+                status_code=400,
+                detail=f"❌ Relevant document file tidak ditemukan: {request.relevant_doc_filename}",
             )
 
         # Inisialisasi service
@@ -440,13 +443,13 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
         # ⭐ GUNAKAN INVERTED FILE DARI CACHE
         cached_inverted_file = _inverted_file_cache["inverted_file"]
 
-        # Panggil batch retrieval function dengan filepath dan relevant_doc
+        # Panggil batch retrieval function dengan filepath untuk relevant_doc
         batch_results, mean_average_precision = (
             await retrieval_service.retrieve_document_batch_query(
                 filename=request.query_file,
                 inverted_file=cached_inverted_file,
                 weighting_method=request.weighting_method,
-                relevant_doc=request.relevant_doc,
+                relevant_doc_filename=request.relevant_doc_filename,  # Changed parameter name
             )
         )
 
@@ -477,7 +480,7 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
             query_results=query_results,
             processing_info={
                 "query_file_path": request.query_file,
-                "total_relevant_queries": len(request.relevant_doc),
+                "relevant_doc_file_path": request.relevant_doc_filename,  # Updated info
                 "weighting_method": request.weighting_method,
                 "cache_terms_count": len(cached_inverted_file),
             },
