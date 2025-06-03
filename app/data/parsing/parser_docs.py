@@ -37,15 +37,18 @@ for line in lines:
 
     elif line == ".B":
         current_field = "bibliographic"
+    
+    elif line == ".X":
+        current_field = "unknown"
 
     else:
-        if current_field:
+        if current_field != "unknown":
             current_doc[current_field] += "" + line.strip()
 
 if current_id:
     docs[current_id] = current_doc
 
-with open(r"app\data\parsing\parsing_docs_2.json", "w", encoding="utf-8") as out_file:
+with open(r"app\data\parsing\parsing_docs_with_field.json", "w", encoding="utf-8") as out_file:
     json.dump(docs, out_file, indent=2, ensure_ascii=False)
 
 print("Saved")
