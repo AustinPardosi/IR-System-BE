@@ -1,7 +1,5 @@
 """
-Query Router
------------
-Router untuk endpoint terkait query expansion menggunakan Word2Vec.
+Query Router - Endpoint untuk query expansion menggunakan Word2Vec
 """
 
 from fastapi import APIRouter, HTTPException
@@ -28,21 +26,12 @@ class QueryRequest(BaseModel):
 async def expand_query(request: QueryRequest):
     """
     Endpoint untuk melakukan query expansion menggunakan Word2Vec.
-
-    Args:
-        request: QueryRequest model berisi query, threshold, dan limit
-
-    Returns:
-        Dict berisi hasil query expansion dengan kata-kata yang direkomendasikan
     """
     try:
         # Import di sini untuk menghindari circular import
         from main import get_query_expansion_service
 
-        # Dapatkan service yang sudah dilatih saat startup
         qe_service = get_query_expansion_service()
-
-        # Lakukan query expansion
         result = await qe_service.expand_query(
             request.query, request.threshold, request.limit
         )
@@ -68,9 +57,7 @@ async def expand_query(request: QueryRequest):
 
 @router.get("/model-status")
 async def get_model_status():
-    """
-    Endpoint untuk mengecek status Word2Vec model.
-    """
+    """Endpoint untuk mengecek status Word2Vec model."""
     try:
         from main import get_query_expansion_service
 

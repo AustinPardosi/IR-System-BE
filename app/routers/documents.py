@@ -1,10 +1,5 @@
 """
-Documents Router
--------------
-Router untuk endpoint terkait dokumen:
-1. Get list document ID
-2. Upload dokumen (placeholder)
-3. Parsing dokumen (placeholder)
+Documents Router - Endpoint untuk operasi dokumen
 """
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -26,8 +21,6 @@ router = APIRouter(
 async def get_document_list():
     """
     Endpoint untuk mendapatkan list document ID dari file parsing_docs.json.
-    Returns:
-        List[Dict]: List berisi dictionary dengan format {"id": str, "label": str}
     """
     try:
         # Baca file parsing_docs.json
@@ -58,17 +51,11 @@ async def get_document_list():
 
 @router.post("/upload")
 async def upload_documents(file: UploadFile = File(...)):
-    """
-    Endpoint untuk upload dokumen.
-    """
-    # Placeholder for implementation
+    """Endpoint untuk upload dokumen."""
     return {"message": "Upload documents placeholder", "filename": file.filename}
 
 
 @router.post("/parse")
 async def parse_documents(directory: str = Form(...)):
-    """
-    Endpoint untuk parsing dokumen dari direktori.
-    """
-    # Placeholder for implementation
+    """Endpoint untuk parsing dokumen dari direktori."""
     return {"message": "Parse documents placeholder", "directory": directory}

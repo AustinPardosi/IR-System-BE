@@ -98,16 +98,20 @@ async def retrieve_documents(request: DocumentRetrievalInputSimple):
             )
         )
 
-        ranked_docs = list(similarity_results.keys()) if similarity_results else []
+        # Convert similarity_results to list of documents with id and similarity
+        ranked_documents = []
+        for doc_id, similarity_score in similarity_results.items():
+            ranked_documents.append({"id": doc_id, "similarity": similarity_score})
+
         logger.info(
-            f"Retrieved {len(ranked_docs)} documents with AP: {average_precision}"
+            f"Retrieved {len(ranked_documents)} documents with AP: {average_precision}"
         )
 
         return DocumentRetrievalResult(
             status="success",
-            ranked_documents=ranked_docs,
+            ranked_documents=ranked_documents,
             average_precision=average_precision,
-            total_retrieved=len(ranked_docs),
+            total_retrieved=len(ranked_documents),
             query_used=request.query,
         )
 
@@ -332,17 +336,24 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
         )
 
         query_results = []
-        for i, (similarity_results, average_precision) in enumerate(batch_results):
+        for i, (similarity_results, query_info, average_precision) in enumerate(
+            batch_results
+        ):
+            query_id, query_content = query_info
+            query_text = str(query_content["title"] + " " + query_content["words"])
+
+            # Convert similarity_results to list of documents with id and similarity
+            top_documents = []
+            for doc_id, similarity_score in list(similarity_results.items())[:10]:
+                top_documents.append({"id": doc_id, "similarity": similarity_score})
+
             query_results.append(
                 {
                     "query_index": i + 1,
+                    "query": query_text,
                     "average_precision": average_precision,
                     "total_retrieved": len(similarity_results),
-                    "top_documents": (
-                        list(similarity_results.keys())[:10]
-                        if similarity_results
-                        else []
-                    ),
+                    "top_documents": top_documents,
                 }
             )
 
@@ -357,7 +368,7 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
             query_results=query_results,
             processing_info={
                 "query_file_path": request.query_file,
-                "relevant_doc_file_path": request.relevant_doc_filename,
+                "total_relevant_queries": len(batch_results),
                 "weighting_method": request.weighting_method,
                 "cache_terms_count": len(cached_inverted_file),
             },

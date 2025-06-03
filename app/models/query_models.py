@@ -97,8 +97,9 @@ class DocumentRetrievalResult(BaseModel):
     """
 
     status: str = Field(..., description="Status operasi retrieval")
-    ranked_documents: List[str] = Field(
-        ..., description="List dokumen yang diurutkan berdasarkan similarity"
+    ranked_documents: List[Dict[str, Any]] = Field(
+        ...,
+        description="List dokumen yang diurutkan berdasarkan similarity dengan format [{'id': str, 'similarity': float}]",
     )
     average_precision: float = Field(
         ...,
