@@ -73,6 +73,13 @@ class DocumentRetrievalInputSimple(BaseModel):
     """
 
     query: str = Field(..., description="Query text yang akan dicari")
+    use_stemming: bool = Field(
+        True, description="Apakah menggunakan stemming dalam preprocessing query"
+    )
+    use_stopword_removal: bool = Field(
+        True,
+        description="Apakah menggunakan stopword removal dalam preprocessing query",
+    )
     weighting_method: Dict[str, bool] = Field(
         ..., description="Metode pembobotan yang digunakan untuk query"
     )
@@ -132,6 +139,13 @@ class BatchRetrievalInput(BaseModel):
         ...,
         description="Filepath string ke file relevant docs (contoh: 'D://path/to/relevant_docs.json')",
     )
+    use_stemming: bool = Field(
+        True, description="Apakah menggunakan stemming dalam preprocessing query"
+    )
+    use_stopword_removal: bool = Field(
+        True,
+        description="Apakah menggunakan stopword removal dalam preprocessing query",
+    )
     weighting_method: Dict[str, bool] = Field(
         ..., description="Metode pembobotan yang digunakan untuk query"
     )
@@ -141,6 +155,8 @@ class BatchRetrievalInput(BaseModel):
             "example": {
                 "query_file": "D://path/to/queries.xml",
                 "relevant_doc_filename": "D://path/to/relevant_docs.json",
+                "use_stemming": True,
+                "use_stopword_removal": True,
                 "weighting_method": {
                     "tf_raw": True,
                     "tf_log": False,
@@ -177,6 +193,8 @@ class QueryWeightInput(BaseModel):
     """
 
     query: str = Field(..., description="Query text yang akan dihitung bobotnya")
+    use_stemming: bool = Field(True, description="Apakah menggunakan stemming dalam preprocessing query")
+    use_stopword_removal: bool = Field(True, description="Apakah menggunakan stopword removal dalam preprocessing query")
     weighting_method: Dict[str, bool] = Field(
         ..., description="Metode pembobotan yang digunakan untuk query"
     )

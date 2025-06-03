@@ -88,6 +88,10 @@ async def retrieve_documents(request: DocumentRetrievalInputSimple):
             )
 
         logger.info(f"Processing document retrieval for query: '{request.query}'")
+        logger.info(
+            f"Query preprocessing: stemming={request.use_stemming}, stopword_removal={request.use_stopword_removal}"
+        )
+
         retrieval_service = RetrievalService()
         cached_inverted_file = _inverted_file_cache["inverted_file"]
 
@@ -97,6 +101,8 @@ async def retrieve_documents(request: DocumentRetrievalInputSimple):
                 inverted_file=cached_inverted_file,
                 weighting_method=request.weighting_method,
                 relevant_doc=request.relevant_doc,
+                use_stemming=request.use_stemming,
+                use_stopword_removal=request.use_stopword_removal,
             )
         )
 
@@ -312,6 +318,9 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
         logger.info(f"Processing batch retrieval using cached inverted file")
         logger.info(f"Query file: {request.query_file}")
         logger.info(f"Relevant doc file: {request.relevant_doc_filename}")
+        logger.info(
+            f"Query preprocessing: stemming={request.use_stemming}, stopword_removal={request.use_stopword_removal}"
+        )
 
         if not os.path.exists(request.query_file):
             raise HTTPException(
@@ -334,6 +343,8 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
                 inverted_file=cached_inverted_file,
                 weighting_method=request.weighting_method,
                 relevant_doc_filename=request.relevant_doc_filename,
+                use_stemming=request.use_stemming,
+                use_stopword_removal=request.use_stopword_removal,
             )
         )
 
@@ -376,6 +387,10 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
                 "query_file_path": request.query_file,
                 "total_relevant_queries": len(batch_results),
                 "weighting_method": request.weighting_method,
+                "query_preprocessing": {
+                    "use_stemming": request.use_stemming,
+                    "use_stopword_removal": request.use_stopword_removal,
+                },
                 "cache_terms_count": len(cached_inverted_file),
             },
         )
@@ -458,6 +473,10 @@ async def calculate_query_weight(request: QueryWeightInput):
             )
 
         logger.info(f"Calculating query weight for: '{request.query}'")
+        logger.info(
+            f"Query preprocessing: stemming={request.use_stemming}, stopword_removal={request.use_stopword_removal}"
+        )
+
         retrieval_service = RetrievalService()
         cached_inverted_file = _inverted_file_cache["inverted_file"]
 
@@ -465,6 +484,8 @@ async def calculate_query_weight(request: QueryWeightInput):
             query=request.query,
             weighting_method=request.weighting_method,
             inverted_file=cached_inverted_file,
+            use_stemming=request.use_stemming,
+            use_stopword_removal=request.use_stopword_removal,
         )
 
         if not query_vector:
