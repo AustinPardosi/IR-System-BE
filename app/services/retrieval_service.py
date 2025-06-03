@@ -278,7 +278,11 @@ class RetrievalService:
         inverted_file: Dict[str, Any],
         weighting_method: Dict[str, bool],
         relevant_doc_filename: str,
-    ) -> Tuple[List[Tuple[Dict[str, float], Tuple[str, str], float]], float]:
+    ) -> Tuple[
+        List[Tuple[Dict[str, float], Tuple[str, str], float]],
+        float,
+        Dict[str, List[str]],
+    ]:
         """
         Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
 
@@ -290,10 +294,11 @@ class RetrievalService:
 
         Returns:
             Tuple berisi: daftar yang berisi kembalian dari fungsi retrieve_document_single_query diselipkan
-            tuple ID query dan kontennya, dengan mean average precision secara keseluruhan.
+            tuple ID query dan kontennya, dengan mean average precision secara keseluruhan, dan
+            dictionary relevant documents per query.
         """
         list_query = parser_query(filename)
-        
+
         # relevant_doc: Dict[str, List[str]]
         relevant_doc = parser_qrels(relevant_doc_filename)
 
@@ -312,7 +317,7 @@ class RetrievalService:
         average_precisions = [tuple_sim_ap[i][2] for i in range(len(tuple_sim_ap))]
         mean_average_precision = sum(average_precisions) / len(average_precisions)
 
-        retrieval_result = (tuple_sim_ap, mean_average_precision)
+        retrieval_result = (tuple_sim_ap, mean_average_precision, relevant_doc)
         return retrieval_result
 
     async def retrieve_document_by_id(

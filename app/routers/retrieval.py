@@ -328,7 +328,7 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
         retrieval_service = RetrievalService()
         cached_inverted_file = _inverted_file_cache["inverted_file"]
 
-        batch_results, mean_average_precision = (
+        batch_results, mean_average_precision, relevant_doc = (
             await retrieval_service.retrieve_document_batch_query(
                 filename=request.query_file,
                 inverted_file=cached_inverted_file,
@@ -349,12 +349,16 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
             for doc_id, similarity_score in list(similarity_results.items())[:10]:
                 top_documents.append({"id": doc_id, "similarity": similarity_score})
 
+            # Ambil relevant judgement untuk query ini
+            relevant_judgement = relevant_doc.get(query_id, [])
+
             query_results.append(
                 {
                     "query_index": i + 1,
                     "query": query_text,
                     "average_precision": average_precision,
                     "total_retrieved": len(similarity_results),
+                    "relevant_judgement": relevant_judgement,
                     "top_documents": top_documents,
                 }
             )
