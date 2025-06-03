@@ -249,8 +249,8 @@ class RetrievalService:
             relevant_doc: list id dokumen yang relevan
 
         Returns:
-            Tuple kamus ID dokumen ter-retrieved dan similarity-nya dengan query,
-            beserta average precision-nya
+            Tuple: kamus ID dokumen ter-retrieved dan similarity-nya dengan query,
+            dan average precision-nya
         """
 
         query_vector = await self.calculate_query_weight(
@@ -278,7 +278,7 @@ class RetrievalService:
         inverted_file: Dict[str, Any],
         weighting_method: Dict[str, bool],
         relevant_doc_filename: str,
-    ) -> Tuple[List[Tuple[Dict[str, float], float]], float]:
+    ) -> Tuple[List[Tuple[Dict[str, float], Tuple[str, str], float]], float]:
         """
         Mengambil dokumen yang relevan berdasarkan query yang dimasukkan
 
@@ -286,12 +286,11 @@ class RetrievalService:
             filename: nama/lokasi file batch query.
             inverted_file: file yang berisi bobot-bobot term pada setiap dokumen.
             weighting_method: metode pembobotan untuk query.
-            relevant_doc: nama/lokasi file daftar dokumen relevan
+            relevant_doc_filename: nama/lokasi file daftar dokumen relevan
 
         Returns:
-            Tuple berisi: daftar yang berisi tuple kamus dokumen ter-retreived
-            beserta masing-masing similarity-nya dengan satu query dan average
-            precision-nya, dengan mean avergae precision secara keseluruhan.
+            Tuple berisi: daftar yang berisi kembalian dari fungsi retrieve_document_single_query diselipkan
+            tuple ID query dan kontennya, dengan mean average precision secara keseluruhan.
         """
         list_query = parser_query(filename)
         
@@ -308,9 +307,9 @@ class RetrievalService:
                     weighting_method,
                     relevant_doc[query_id],
                 )
-                tuple_sim_ap.append((sim, average_precision))
+                tuple_sim_ap.append((sim, (query_id, query_content), average_precision))
 
-        average_precisions = [tuple_sim_ap[i][1] for i in range(len(tuple_sim_ap))]
+        average_precisions = [tuple_sim_ap[i][2] for i in range(len(tuple_sim_ap))]
         mean_average_precision = sum(average_precisions) / len(average_precisions)
 
         retrieval_result = (tuple_sim_ap, mean_average_precision)
