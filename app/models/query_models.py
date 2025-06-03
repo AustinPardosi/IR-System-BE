@@ -248,3 +248,59 @@ class RetrieveDocumentsByIdsResult(BaseModel):
     )
     not_found_ids: List[str] = Field(..., description="List ID yang tidak ditemukan")
     message: str = Field(..., description="Pesan informasi")
+
+
+class Word2VecRetrainingInput(BaseModel):
+    """
+    Model untuk input retraining Word2Vec dengan konfigurasi preprocessing custom.
+    """
+
+    use_stemming: bool = Field(
+        True, description="Apakah menggunakan stemming dalam preprocessing dokumen"
+    )
+    use_stopword_removal: bool = Field(
+        True,
+        description="Apakah menggunakan stopword removal dalam preprocessing dokumen",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {"use_stemming": True, "use_stopword_removal": False}
+        }
+
+
+class Word2VecRetrainingResult(BaseModel):
+    """
+    Model untuk hasil retraining Word2Vec.
+    """
+
+    status: str = Field(..., description="Status operasi retraining")
+    message: str = Field(..., description="Pesan informasi")
+    training_info: Dict[str, Any] = Field(
+        ..., description="Informasi detail hasil training"
+    )
+    previous_config: Dict[str, bool] = Field(
+        ..., description="Konfigurasi preprocessing sebelumnya"
+    )
+    new_config: Dict[str, bool] = Field(
+        ..., description="Konfigurasi preprocessing yang baru"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "message": "Word2Vec model berhasil dilatih ulang",
+                "training_info": {
+                    "vocabulary_size": 1250,
+                    "preprocessing_config": {
+                        "use_stemming": True,
+                        "use_stopword_removal": False,
+                    },
+                    "total_documents": 1460,
+                    "total_processed_sentences": 1460,
+                },
+                "previous_config": {"use_stemming": True, "use_stopword_removal": True},
+                "new_config": {"use_stemming": True, "use_stopword_removal": False},
+            }
+        }

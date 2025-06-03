@@ -7,7 +7,12 @@ from typing import Optional
 import logging
 import os
 from pydantic import BaseModel
-from app.models.query_models import BatchQueryExpansionInput, BatchQueryExpansionResult
+from app.models.query_models import (
+    BatchQueryExpansionInput,
+    BatchQueryExpansionResult,
+    Word2VecRetrainingInput,
+    Word2VecRetrainingResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +167,7 @@ async def get_model_status():
             "vocabulary_size": (
                 len(qe_service.model.wv.key_to_index) if qe_service.model else 0
             ),
+            "preprocessing_config": qe_service.get_current_preprocessing_config(),
             "message": "Word2Vec model is trained and ready for query expansion",
         }
     except HTTPException as e:
@@ -169,6 +175,7 @@ async def get_model_status():
             "status": "not_ready",
             "model_trained": False,
             "vocabulary_size": 0,
+            "preprocessing_config": None,
             "message": str(e.detail),
         }
     except Exception as e:
@@ -176,5 +183,94 @@ async def get_model_status():
             "status": "error",
             "model_trained": False,
             "vocabulary_size": 0,
+            "preprocessing_config": None,
             "message": f"Error checking model status: {str(e)}",
+        }
+
+
+@router.post("/retrain-model", response_model=Word2VecRetrainingResult)
+async def retrain_word2vec_model(request: Word2VecRetrainingInput):
+    """
+    Endpoint untuk melatih ulang Word2Vec model dengan konfigurasi preprocessing yang disesuaikan.
+
+    Setelah retraining, semua service lain akan menggunakan model Word2Vec yang baru.
+    """
+    try:
+        from main import get_query_expansion_service
+        import os
+
+        qe_service = get_query_expansion_service()
+
+        # Simpan konfigurasi sebelumnya
+        previous_config = qe_service.get_current_preprocessing_config()
+
+        logger.info(f"Starting Word2Vec retraining with config: {request.dict()}")
+
+        # Load dokumen yang sama dengan startup
+        document_path = "app/data/parsing/parsing_docs.json"
+
+        if not os.path.exists(document_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document file tidak ditemukan: {document_path}",
+            )
+
+        # Baca dokumen
+        documents = qe_service.read_json_collection(file_path=document_path)
+        logger.info(f"Loaded {len(documents)} documents for retraining")
+
+        # Lakukan retraining dengan konfigurasi baru
+        training_info = await qe_service.retrain_word2vec_model(
+            documents=documents,
+            use_stemming=request.use_stemming,
+            use_stopword_removal=request.use_stopword_removal,
+        )
+
+        logger.info("Word2Vec model retraining completed successfully")
+
+        return Word2VecRetrainingResult(
+            status="success",
+            message="Word2Vec model berhasil dilatih ulang dengan konfigurasi baru",
+            training_info=training_info,
+            previous_config=previous_config,
+            new_config=qe_service.get_current_preprocessing_config(),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error during Word2Vec model retraining")
+        raise HTTPException(
+            status_code=500, detail=f"Error melatih ulang Word2Vec model: {str(e)}"
+        )
+
+
+@router.get("/preprocessing-config")
+async def get_preprocessing_config():
+    """
+    Endpoint untuk mendapatkan konfigurasi preprocessing yang sedang digunakan oleh Word2Vec model.
+    """
+    try:
+        from main import get_query_expansion_service
+
+        qe_service = get_query_expansion_service()
+        config = qe_service.get_current_preprocessing_config()
+
+        return {
+            "status": "success",
+            "preprocessing_config": config,
+            "message": "Konfigurasi preprocessing Word2Vec model saat ini",
+        }
+
+    except HTTPException as e:
+        return {
+            "status": "not_ready",
+            "preprocessing_config": None,
+            "message": str(e.detail),
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "preprocessing_config": None,
+            "message": f"Error getting preprocessing config: {str(e)}",
         }

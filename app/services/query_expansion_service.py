@@ -28,6 +28,10 @@ class QueryExpansionService:
         """
         self.model = None
         self._is_trained = False
+        self._current_preprocessing_config = {
+            "use_stemming": True,
+            "use_stopword_removal": True,
+        }
 
     @classmethod
     async def create(cls, document_path: str):
@@ -79,12 +83,16 @@ class QueryExpansionService:
         Args:
             documents: Dictionary berisi dokumen dengan format {doc_id: content}.
         """
-        # Preprocess semua dokumen
+        # Preprocess semua dokumen dengan konfigurasi default
         processed_docs = []
         for doc_id, content in documents.items():
             # Gunakan fungsi preprocess yang sudah ada
             tokens = preprocess_text(
-                content, use_stemming=True, use_stopword_removal=True
+                content,
+                use_stemming=self._current_preprocessing_config["use_stemming"],
+                use_stopword_removal=self._current_preprocessing_config[
+                    "use_stopword_removal"
+                ],
             )
             processed_docs.append(tokens)
 
@@ -102,6 +110,74 @@ class QueryExpansionService:
         logger.info(
             f"Word2Vec model trained with vocabulary size: {len(self.model.wv.key_to_index)}"
         )
+
+    async def retrain_word2vec_model(
+        self,
+        documents: Dict[str, str],
+        use_stemming: bool = True,
+        use_stopword_removal: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Melatih ulang model Word2Vec dengan parameter preprocessing yang dapat disesuaikan.
+
+        Args:
+            documents: Dictionary berisi dokumen dengan format {doc_id: content}.
+            use_stemming: Apakah menggunakan stemming dalam preprocessing.
+            use_stopword_removal: Apakah menggunakan stopword removal dalam preprocessing.
+
+        Returns:
+            Dictionary berisi informasi hasil training.
+        """
+        logger.info(
+            f"Retraining Word2Vec model with stemming={use_stemming}, stopword_removal={use_stopword_removal}"
+        )
+
+        # Update konfigurasi preprocessing
+        self._current_preprocessing_config = {
+            "use_stemming": use_stemming,
+            "use_stopword_removal": use_stopword_removal,
+        }
+
+        # Preprocess semua dokumen dengan parameter yang diberikan
+        processed_docs = []
+        for doc_id, content in documents.items():
+            tokens = preprocess_text(
+                content,
+                use_stemming=use_stemming,
+                use_stopword_removal=use_stopword_removal,
+            )
+            processed_docs.append(tokens)
+
+        # Train Word2Vec model baru
+        self.model = Word2Vec(
+            sentences=processed_docs,
+            vector_size=100,  # Dimensi vektor
+            window=5,  # Ukuran window konteks
+            min_count=2,  # Frekuensi minimum term
+            workers=4,  # Jumlah thread
+            sg=1,  # Skip-gram model (lebih baik untuk kata jarang)
+        )
+
+        self._is_trained = True
+
+        training_info = {
+            "vocabulary_size": len(self.model.wv.key_to_index),
+            "preprocessing_config": self._current_preprocessing_config,
+            "total_documents": len(documents),
+            "total_processed_sentences": len(processed_docs),
+        }
+
+        logger.info(f"Word2Vec model retrained successfully: {training_info}")
+        return training_info
+
+    def get_current_preprocessing_config(self) -> Dict[str, bool]:
+        """
+        Mendapatkan konfigurasi preprocessing yang sedang digunakan.
+
+        Returns:
+            Dictionary berisi konfigurasi preprocessing saat ini.
+        """
+        return self._current_preprocessing_config.copy()
 
     async def load_pretrained_model(self, model_path: str) -> None:
         """
@@ -138,9 +214,13 @@ class QueryExpansionService:
 
         isLimited = limit > -1
 
-        # Preprocess query
+        # Preprocess query menggunakan konfigurasi yang sama dengan model
         query_terms = preprocess_text(
-            query, use_stemming=True, use_stopword_removal=True
+            query,
+            use_stemming=self._current_preprocessing_config["use_stemming"],
+            use_stopword_removal=self._current_preprocessing_config[
+                "use_stopword_removal"
+            ],
         )
 
         # Simpan term yang akan ditambahkan
