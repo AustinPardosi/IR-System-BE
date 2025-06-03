@@ -11,6 +11,7 @@ from typing import List, Set
 import logging
 from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
+import string
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,10 @@ def preprocess_text(
         List token hasil preprocessing, lowercase
     """
     tokens = tokenize(text)
+
+    # Hapus token yang hanya berupa tanda baca
+    tokens = [t for t in tokens if t not in string.punctuation]
+
     if use_stemming:
         tokens = stem_tokens(tokens)
     if use_stopword_removal:
