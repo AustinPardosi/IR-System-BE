@@ -1,11 +1,5 @@
 """
-Retrieval Router
--------------
-Router untuk endpoint terkait retrieval:
-1. Interactive query
-2. Batch query
-3. Inverted file
-4. Model status
+Retrieval Router - Endpoint untuk operasi retrieval dokumen
 """
 
 from fastapi import (
@@ -33,14 +27,13 @@ from app.models.query_models import (
     BatchRetrievalInput,
     BatchRetrievalResult,
 )
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Simple cache untuk inverted file
+# Cache untuk inverted file
 _cached_inverted_file = None
 _cache_key = None
-
-# Global cache untuk inverted file data
 _inverted_file_cache = {"inverted_file": None, "parameters": None, "is_cached": False}
 
 router = APIRouter(
@@ -50,12 +43,16 @@ router = APIRouter(
 )
 
 
+class DocumentWeightResponse(BaseModel):
+    status: str
+    document_id: str
+    weights: Dict[str, float]
+    total_terms: int
+    message: str
+
+
 @router.post("/query/interactive", response_model=RetrievalResult)
 async def interactive_query(query_input: InteractiveQueryInput):
-    """
-    Endpoint untuk query interaktif.
-    """
-    # Placeholder for implementation
     return {"message": "Interactive query placeholder"}
 
 
@@ -67,10 +64,6 @@ async def batch_query(
     use_stopword_removal: bool = Form(True),
     query_expansion_threshold: float = Form(0.7),
 ):
-    """
-    Endpoint untuk batch query.
-    """
-    # Placeholder for implementation
     return {"message": "Batch query placeholder"}
 
 
@@ -78,65 +71,24 @@ async def batch_query(
 async def retrieve_documents(request: DocumentRetrievalInputSimple):
     """
     Endpoint untuk melakukan retrieval dokumen menggunakan cached inverted file.
-
-    ⭐ PENTING: Endpoint ini menggunakan inverted file yang sudah di-cache dari endpoint GET /inverted-file.
-    Pastikan Anda sudah memanggil GET /inverted-file terlebih dahulu sebelum menggunakan endpoint ini.
-
-    **Contoh Request Body (lebih simple, tanpa inverted_file):**
-    ```json
-    {
-        "query": "information retrieval test",
-        "weighting_method": {
-            "tf_raw": true,
-            "tf_log": false,
-            "tf_binary": false,
-            "tf_augmented": false,
-            "use_idf": true,
-            "use_normalization": true
-        },
-        "relevant_doc": [1, 2, 3]
-    }
-    ```
-
-    **Response:**
-    - status: Status operasi ("success" atau "error")
-    - ranked_documents: List ID dokumen yang diurutkan berdasarkan similarity
-    - average_precision: Nilai average precision untuk evaluasi
-    - total_retrieved: Total dokumen yang ditemukan
-    - query_used: Query text yang digunakan
-
-    Args:
-        request: DocumentRetrievalInputSimple berisi query, weighting_method, dan relevant_doc
-
-    Returns:
-        DocumentRetrievalResult berisi ranked documents dan average precision
-
-    Raises:
-        HTTPException: Jika terjadi error dalam proses retrieval atau cache belum tersedia
+    Pastikan sudah memanggil GET /inverted-file terlebih dahulu.
     """
     global _inverted_file_cache
 
     try:
-        # ✅ CEK APAKAH CACHE TERSEDIA
         if (
             not _inverted_file_cache["is_cached"]
             or _inverted_file_cache["inverted_file"] is None
         ):
             raise HTTPException(
                 status_code=400,
-                detail="❌ Inverted file cache tidak tersedia. Silakan panggil GET /api/retrieval/inverted-file terlebih dahulu untuk generate dan cache inverted file.",
+                detail="Inverted file cache tidak tersedia. Silakan panggil GET /api/retrieval/inverted-file terlebih dahulu.",
             )
 
         logger.info(f"Processing document retrieval for query: '{request.query}'")
-        logger.info("Using cached inverted file")
-
-        # Inisialisasi service
         retrieval_service = RetrievalService()
-
-        # ⭐ GUNAKAN INVERTED FILE DARI CACHE
         cached_inverted_file = _inverted_file_cache["inverted_file"]
 
-        # Panggil method retrieve_document dengan inverted file dari cache
         similarity_results, average_precision = (
             await retrieval_service.retrieve_document_single_query(
                 query=request.query,
@@ -146,9 +98,7 @@ async def retrieve_documents(request: DocumentRetrievalInputSimple):
             )
         )
 
-        # Konversi dictionary similarity menjadi list document IDs yang ter-ranking
         ranked_docs = list(similarity_results.keys()) if similarity_results else []
-
         logger.info(
             f"Retrieved {len(ranked_docs)} documents with AP: {average_precision}"
         )
@@ -162,7 +112,6 @@ async def retrieve_documents(request: DocumentRetrievalInputSimple):
         )
 
     except HTTPException:
-        # Re-raise HTTPException yang sudah ada
         raise
     except Exception as e:
         logger.exception("Error saat melakukan document retrieval")
@@ -184,39 +133,22 @@ async def get_inverted_file(
 ):
     """
     Endpoint untuk mendapatkan inverted file dari dokumen yang tersimpan di parsing_docs.json.
-    Menggunakan caching untuk meningkatkan performa.
-
-    ⭐ PENTING: Inverted file akan disimpan ke global cache untuk digunakan oleh endpoint retrieve.
-
-    Parameters (semua parameter wajib diisi):
-    - use_stemming: Gunakan stemming atau tidak
-    - use_stopword_removal: Hapus stopwords atau tidak
-    - tf_raw: Gunakan raw term frequency
-    - tf_log: Gunakan log term frequency
-    - tf_binary: Gunakan binary term frequency
-    - tf_augmented: Gunakan augmented term frequency
-    - use_idf: Gunakan inverse document frequency
-    - use_normalization: Gunakan normalisasi
+    Inverted file akan disimpan ke global cache untuk digunakan oleh endpoint retrieve.
     """
     global _cached_inverted_file, _cache_key, _inverted_file_cache
 
     try:
-        # Buat cache key dari semua parameter
         current_cache_key = f"{use_stemming}_{use_stopword_removal}_{tf_raw}_{tf_log}_{tf_binary}_{tf_augmented}_{use_idf}_{use_normalization}"
 
-        # Cek apakah sudah ada di cache dengan parameter yang sama
         if _cached_inverted_file and _cache_key == current_cache_key:
             logger.info("Returning cached inverted file")
             return _cached_inverted_file
 
         logger.info("Generating new inverted file...")
-
-        # Baca file JSON
         json_path = os.path.join("app", "data", "parsing", "parsing_docs.json")
         with open(json_path, "r", encoding="utf-8") as f:
             documents = json.load(f)
 
-        # Buat weighting method dari input user
         document_weighting_method = {
             "tf_raw": tf_raw,
             "tf_log": tf_log,
@@ -226,13 +158,11 @@ async def get_inverted_file(
             "use_normalization": use_normalization,
         }
 
-        # Buat inverted file
         retrieval_service = RetrievalService()
         inverted_file = await retrieval_service.create_inverted_file(
             documents, use_stemming, use_stopword_removal, document_weighting_method
         )
 
-        # ⭐ SIMPAN KE GLOBAL CACHE untuk endpoint retrieve
         _inverted_file_cache["inverted_file"] = inverted_file
         _inverted_file_cache["parameters"] = {
             "use_stemming": use_stemming,
@@ -252,17 +182,15 @@ async def get_inverted_file(
                 "document_weighting_method": document_weighting_method,
             },
             "cached": False,
-            "cache_info": "✅ Inverted file berhasil disimpan ke cache untuk endpoint retrieve",
+            "cache_info": "Inverted file berhasil disimpan ke cache untuk endpoint retrieve",
         }
 
-        # Simpan ke cache
         _cached_inverted_file = result
         _cache_key = current_cache_key
 
         logger.info(
             f"Inverted file generated and cached with {len(inverted_file)} terms"
         )
-        logger.info("✅ Inverted file saved to global cache for retrieve endpoint")
         return result
 
     except FileNotFoundError:
@@ -282,9 +210,7 @@ async def get_inverted_file(
 
 @router.get("/cache/status")
 async def get_cache_status():
-    """
-    Endpoint untuk mengecek status cache inverted file.
-    """
+    """Endpoint untuk mengecek status cache inverted file."""
     global _inverted_file_cache
 
     if (
@@ -293,7 +219,7 @@ async def get_cache_status():
     ):
         total_terms = len(_inverted_file_cache["inverted_file"])
         return {
-            "status": "✅ Cache tersedia",
+            "status": "Cache tersedia",
             "is_cached": True,
             "total_terms": total_terms,
             "parameters": _inverted_file_cache["parameters"],
@@ -301,7 +227,7 @@ async def get_cache_status():
         }
     else:
         return {
-            "status": "❌ Cache tidak tersedia",
+            "status": "Cache tidak tersedia",
             "is_cached": False,
             "total_terms": 0,
             "parameters": None,
@@ -311,15 +237,11 @@ async def get_cache_status():
 
 @router.delete("/inverted-file/cache")
 async def clear_inverted_file_cache():
-    """
-    Endpoint untuk menghapus cache inverted file.
-    """
+    """Endpoint untuk menghapus cache inverted file."""
     global _cached_inverted_file, _cache_key, _inverted_file_cache
 
     _cached_inverted_file = None
     _cache_key = None
-
-    # Clear global cache untuk retrieve
     _inverted_file_cache["inverted_file"] = None
     _inverted_file_cache["parameters"] = None
     _inverted_file_cache["is_cached"] = False
@@ -327,15 +249,13 @@ async def clear_inverted_file_cache():
     logger.info("All caches cleared")
     return {
         "status": "success",
-        "message": "✅ Semua cache berhasil dihapus (response cache + inverted file cache)",
+        "message": "Semua cache berhasil dihapus",
     }
 
 
 @router.get("/model-status")
 async def get_model_status():
-    """
-    Endpoint untuk mengecek status Word2Vec model.
-    """
+    """Endpoint untuk mengecek status Word2Vec model."""
     try:
         from main import get_query_expansion_service
 
@@ -369,91 +289,48 @@ async def get_model_status():
 async def batch_retrieve_documents(request: BatchRetrievalInput):
     """
     Endpoint untuk batch retrieval menggunakan cached inverted file.
-
-    ⭐ PENTING: Endpoint ini menggunakan inverted file yang sudah di-cache dari endpoint GET /inverted-file.
-    Pastikan Anda sudah memanggil GET /inverted-file terlebih dahulu sebelum menggunakan endpoint ini.
-
-    **Contoh Request Body:**
-    ```json
-    {
-        "query_file": "D://path/to/queries.xml",
-        "relevant_doc_filename": "D://path/to/relevant_docs.json",
-        "weighting_method": {
-            "tf_raw": true,
-            "tf_log": false,
-            "tf_binary": false,
-            "tf_augmented": false,
-            "use_idf": true,
-            "use_normalization": true
-        }
-    }
-    ```
-
-    **Response:**
-    - status: Status operasi batch retrieval
-    - total_queries: Total query yang diproses
-    - mean_average_precision: MAP untuk semua query
-    - query_results: Detail hasil untuk setiap query
-    - processing_info: Info tambahan proses
-
-    Args:
-        request: BatchRetrievalInput berisi query_file, relevant_doc_filename, dan weighting_method
-
-    Returns:
-        BatchRetrievalResult berisi hasil batch retrieval dan MAP
-
-    Raises:
-        HTTPException: Jika terjadi error atau cache belum tersedia
+    Pastikan sudah memanggil GET /inverted-file terlebih dahulu.
     """
     global _inverted_file_cache
 
     try:
-        # ✅ CEK APAKAH CACHE TERSEDIA
         if (
             not _inverted_file_cache["is_cached"]
             or _inverted_file_cache["inverted_file"] is None
         ):
             raise HTTPException(
                 status_code=400,
-                detail="❌ Inverted file cache tidak tersedia. Silakan panggil GET /api/retrieval/inverted-file terlebih dahulu untuk generate dan cache inverted file.",
+                detail="Inverted file cache tidak tersedia. Silakan panggil GET /api/retrieval/inverted-file terlebih dahulu.",
             )
 
         logger.info(f"Processing batch retrieval using cached inverted file")
         logger.info(f"Query file: {request.query_file}")
         logger.info(f"Relevant doc file: {request.relevant_doc_filename}")
 
-        # Validasi file paths exist
-        import os
-
         if not os.path.exists(request.query_file):
             raise HTTPException(
                 status_code=400,
-                detail=f"❌ Query file tidak ditemukan: {request.query_file}",
+                detail=f"Query file tidak ditemukan: {request.query_file}",
             )
-        
+
         if not os.path.exists(request.relevant_doc_filename):
             raise HTTPException(
                 status_code=400,
-                detail=f"❌ Relevant document file tidak ditemukan: {request.relevant_doc_filename}",
+                detail=f"Relevant document file tidak ditemukan: {request.relevant_doc_filename}",
             )
 
-        # Inisialisasi service
         retrieval_service = RetrievalService()
-
-        # ⭐ GUNAKAN INVERTED FILE DARI CACHE
         cached_inverted_file = _inverted_file_cache["inverted_file"]
 
-        # Panggil batch retrieval function dengan filepath untuk relevant_doc
         batch_results, mean_average_precision = (
             await retrieval_service.retrieve_document_batch_query(
                 filename=request.query_file,
                 inverted_file=cached_inverted_file,
                 weighting_method=request.weighting_method,
-                relevant_doc_filename=request.relevant_doc_filename,  # Changed parameter name
+                relevant_doc_filename=request.relevant_doc_filename,
             )
         )
 
-        # Format hasil untuk response
         query_results = []
         for i, (similarity_results, average_precision) in enumerate(batch_results):
             query_results.append(
@@ -480,17 +357,66 @@ async def batch_retrieve_documents(request: BatchRetrievalInput):
             query_results=query_results,
             processing_info={
                 "query_file_path": request.query_file,
-                "relevant_doc_file_path": request.relevant_doc_filename,  # Updated info
+                "relevant_doc_file_path": request.relevant_doc_filename,
                 "weighting_method": request.weighting_method,
                 "cache_terms_count": len(cached_inverted_file),
             },
         )
 
     except HTTPException:
-        # Re-raise HTTPException yang sudah ada
         raise
     except Exception as e:
         logger.exception("Error saat melakukan batch retrieval")
         raise HTTPException(
             status_code=500, detail=f"Error during batch retrieval: {str(e)}"
+        )
+
+
+@router.get("/document-weights/{document_id}", response_model=DocumentWeightResponse)
+async def get_document_weights(document_id: str):
+    """
+    Endpoint untuk mengambil bobot setiap term dalam dokumen tertentu.
+    Pastikan sudah memanggil GET /inverted-file terlebih dahulu.
+    """
+    global _inverted_file_cache
+
+    try:
+        if (
+            not _inverted_file_cache["is_cached"]
+            or _inverted_file_cache["inverted_file"] is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Inverted file cache tidak tersedia. Silakan panggil GET /api/retrieval/inverted-file terlebih dahulu.",
+            )
+
+        logger.info(f"Getting weights for document ID: {document_id}")
+        retrieval_service = RetrievalService()
+        cached_inverted_file = _inverted_file_cache["inverted_file"]
+
+        weights = await retrieval_service.get_weight_by_document_id(
+            document_id=document_id, inverted_file=cached_inverted_file
+        )
+        if not weights:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document dengan ID '{document_id}' tidak ditemukan dalam inverted file atau tidak memiliki term apapun.",
+            )
+
+        logger.info(f"Found {len(weights)} terms for document {document_id}")
+
+        return DocumentWeightResponse(
+            status="success",
+            document_id=document_id,
+            weights=weights,
+            total_terms=len(weights),
+            message=f"Berhasil mengambil bobot {len(weights)} term untuk dokumen {document_id}",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error saat mengambil bobot untuk dokumen {document_id}")
+        raise HTTPException(
+            status_code=500, detail=f"Error getting document weights: {str(e)}"
         )

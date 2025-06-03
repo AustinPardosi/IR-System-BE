@@ -48,8 +48,7 @@ def tokenize(text: str) -> List[str]:
         List token hasil tokenisasi.
     """
     try:
-        tokenized_text = word_tokenize(text)
-        return tokenized_text
+        return word_tokenize(text)
     except Exception as e:
         # Fallback ke simple split jika word_tokenize gagal
         return text.split()
@@ -65,12 +64,7 @@ def remove_stopwords(tokens: List[str]) -> List[str]:
     Returns:
         List token tanpa stopwords.
     """
-    filtered_sent = []
-    for w in tokens:
-        if w not in get_stopwords():
-            filtered_sent.append(w)
-
-    return filtered_sent
+    return [w for w in tokens if w not in get_stopwords()]
 
 
 def stem_word(word: str) -> str:
@@ -294,11 +288,11 @@ class RetrievalService:
         Returns:
             Kamus bobot setiap kata dalam dokumen yang diinginkan.
         """
-        doc_dict = {}
-        for file_key, file_value in inverted_file.items():
-            if document_id in file_value.keys():
-                doc_dict[file_key] = file_value[document_id]
-        return doc_dict
+        return {
+            term: weights[document_id]
+            for term, weights in inverted_file.items()
+            if document_id in weights
+        }
 
 
 def print_inverted_file(inverted_file, indent=0):
