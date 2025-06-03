@@ -225,3 +225,26 @@ class BatchQueryExpansionResult(BaseModel):
     )
     parameters: Dict[str, Any] = Field(..., description="Parameter yang digunakan")
     processing_info: Dict[str, Any] = Field(..., description="Info tambahan proses")
+
+
+class RetrieveDocumentsByIdsInput(BaseModel):
+    """
+    Model untuk input retrieve documents by IDs.
+    """
+
+    ids: List[str] = Field(..., description="List ID dokumen yang akan diambil")
+
+
+class RetrieveDocumentsByIdsResult(BaseModel):
+    """
+    Model untuk hasil retrieve documents by IDs.
+    """
+
+    status: str = Field(..., description="Status operasi")
+    total_requested: int = Field(..., description="Total ID yang diminta")
+    total_found: int = Field(..., description="Total dokumen yang ditemukan")
+    documents: List[Dict[str, Any]] = Field(
+        ..., description="List dokumen yang ditemukan"
+    )
+    not_found_ids: List[str] = Field(..., description="List ID yang tidak ditemukan")
+    message: str = Field(..., description="Pesan informasi")
